@@ -21,7 +21,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
 ]
-keywords = ["segmentation"]
+keywords = ["image analysis", "segmentation"]
 dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
