@@ -6,3 +6,4 @@ bioio-ome-zarr
 bioio-tifffile
 numpy
 pycocotools
+scikit-image

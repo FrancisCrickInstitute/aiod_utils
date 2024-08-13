@@ -4,6 +4,7 @@ import warnings
 
 from bioio import BioImage
 from bioio_base.reader import Reader
+from skimage.io import imread
 
 
 def load_image(
@@ -16,6 +17,7 @@ def load_image(
     reader: Optional[Type[Reader]] = None,
 ) -> BioImage:
     assert Path(fpath).exists(), f"File {fpath} does not exist!"
+    fpath = Path(fpath)
     # If returning actual data, we need to know the dimension order
     if dim_order is None and any([return_array, return_dask]):
         raise ValueError(
@@ -26,6 +28,12 @@ def load_image(
         raise ValueError("You cannot return both an array and a dask array!")
     # Check the dim_order, and remap obvious aliases
     dim_order = dim_order.translate(str.maketrans("DHW", "ZYX"))
+    # NOTE: Had some issues with jpg/png, so use skimage for those
+    if fpath.suffix in [".jpg", ".jpeg", ".png"]:
+        warnings.warn(
+            f"Using skimage (not bioio) to load {fpath.name} due to issues with bioio and jpg/png. All bioio arguments are ignored."
+        )
+        return imread(fpath)
     # Load the image with the requested reader
     # Default reader is None, and bioio determines which to use
     # NOTE: bioio uses the most recently installed reader that matches the extension
