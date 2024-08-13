@@ -51,18 +51,19 @@ def load_image(
                         )
                 else:
                     warnings.warn(
-                        f"Image {fpath} has more channels ({img.dims.C}) than slices ({img.dims.Z})! Is that right? Can be fixed with ensure_channel_lower_depth=True."
+                        f"Image {fpath.name} has more channels ({img.dims.C}) than slices ({img.dims.Z})! Is that right? Can be fixed with ensure_channel_lower_depth=True."
                     )
-            if img.dims.Y > img.dims.Z:
+            if img.dims.Y < img.dims.Z:
                 warnings.warn(
-                    f"Image {fpath} has more height ({img.dims.Y}) than slices ({img.dims.Z})! Is that right?"
+                    f"Image {fpath.name} has more slices ({img.dims.Z}) than height ({img.dims.Y})! Is that right?"
                 )
-            if img.dims.X > img.dims.Z:
+            if img.dims.X < img.dims.Z:
                 warnings.warn(
-                    f"Image {fpath} has more width ({img.dims.X}) than slices ({img.dims.Z})! Is that right?"
+                    f"Image {fpath.name} has more slices ({img.dims.Z}) than width ({img.dims.X})! Is that right?"
                 )
     # Return in the desired format
     # NOTE: Could add idxs here, but as they load into memory there's no advantage
+    # So we leave that for Segment-Flow to do as it's almost exclusively done there
     if return_array:
         return img.get_image_data(dimension_order_out=dim_order)
     elif return_dask:
