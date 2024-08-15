@@ -22,7 +22,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 keywords = ["image analysis", "segmentation"]
-dynamic = ["dependencies"]
+dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }
+optional-dependencies.bioformats = { file = "requirements-bioformats.txt" }
