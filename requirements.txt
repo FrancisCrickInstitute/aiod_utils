@@ -1,5 +1,4 @@
 bioio
-bioio-bioformats
 bioio-imageio
 bioio-ome-tiff
 bioio-ome-zarr
