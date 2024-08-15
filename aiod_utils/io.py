@@ -27,6 +27,7 @@ def load_image(
     if return_array and return_dask:
         raise ValueError("You cannot return both an array and a dask array!")
     # Check the dim_order, and remap obvious aliases
+    dim_order = dim_order.upper()
     dim_order = dim_order.translate(str.maketrans("DHW", "ZYX"))
     # NOTE: Had some issues with jpg/png, so use skimage for those
     if fpath.suffix in [".jpg", ".jpeg", ".png"]:
@@ -42,8 +43,9 @@ def load_image(
     if sense_check:
         if img.dims.Z > 1:
             if img.dims.C > img.dims.Z:
+                # Manually swap the channel and depth dims, for whatever order is given, if requested
                 if ensure_channel_lower_depth:
-                    dim_order = "ZCYX"
+                    dim_order = dim_order.translate(str.maketrans("CZ", "ZC"))
                     # This has no effect if not returning an array
                     if not any([return_array, return_dask]):
                         raise ValueError(
