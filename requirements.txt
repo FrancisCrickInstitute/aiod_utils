@@ -5,3 +5,4 @@ bioio-tifffile
 numpy
 pycocotools
 scikit-image
+pyyaml
