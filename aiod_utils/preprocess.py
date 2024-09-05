@@ -188,10 +188,28 @@ class Filter(Preprocess):
         super().__init__(params)
 
     def run(self, img):
+        img = self.check_input(img)
         footprint = self.filters[self.kwarg_params["footprint"]](
             self.kwarg_params.pop("size")
         )
         return self.funcs[self.kwarg_params["method"]](img, footprint=footprint)
+
+    def check_input(self, img):
+        # skimage will throw an error if a 3D neighbourhood is used on a 2D image
+        if img.ndim == 2:
+            if self.kwarg_params["footprint"] in ["cube", "ball"]:
+                raise ValueError(
+                    "A 3D filter (cube/ball) cannot be used on a 2D image!"
+                )
+        # skimage will throw an error if a 2D neighbourhood is used on a 3D image
+        elif img.ndim == 3:
+            if self.kwarg_params["footprint"] in ["square", "disk"]:
+                raise ValueError(
+                    "A 2D filter (square/disk) cannot be used on a 3D image!"
+                )
+        elif img.ndim > 3:
+            raise ValueError("Filter only works with 2D or 3D images!")
+        return img
 
 
 def run_method(
