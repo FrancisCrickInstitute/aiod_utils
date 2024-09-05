@@ -273,7 +273,7 @@ def get_preprocess_options():
             {
                 cls.name: {"object": cls, "params": cls.params}
                 for cls in Preprocess.__subclasses__()
-            }
+            }.items()
         )
     )
 
