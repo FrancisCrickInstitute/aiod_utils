@@ -267,10 +267,15 @@ def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Pat
 
 
 def get_preprocess_options():
-    return {
-        cls.name: {"object": cls, "params": cls.params}
-        for cls in Preprocess.__subclasses__()
-    }
+    # Return a dictionary of the available preprocess subclasses sorted by name
+    return dict(
+        sorted(
+            {
+                cls.name: {"object": cls, "params": cls.params}
+                for cls in Preprocess.__subclasses__()
+            }
+        )
+    )
 
 
 if __name__ == "__main__":
