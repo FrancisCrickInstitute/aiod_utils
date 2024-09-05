@@ -73,11 +73,13 @@ class Downsample(Preprocess):
         "block_size": {
             "name": "Factor (D, H, W)",
             "default": (1, 2, 2),
+            "tooltip": "Downsample factor for each dimension (D, H, W)",
         },
         "method": {
             "name": "Method",
             "default": "median",
             "values": list(methods.keys()),
+            "tooltip": "Downsampling methods, i.e. how to aggregate the blocks",
         },
     }
 
@@ -115,12 +117,15 @@ class CLAHE(Preprocess):
         "tileGridSize": {
             "name": "Tile/Block size",
             "default": (64, 64),
+            "tooltip": "Size of the tile to equalize the histogram of",
         },
         "clipLimit": {
             "name": "Clip limit/Slope",
             "default": 5.0,
+            "tooltip": "Clip limit for contrast, avoiding noise amplification",
         },
     }
+    tooltip: str = "Contrast Limited Adaptive Histogram Equalization"
 
     def __init__(self, params: dict):
         super().__init__(params)
@@ -164,17 +169,24 @@ class Filter(Preprocess):
             "name": "Filter",
             "default": "disk",
             "values": list(filters.keys()),
+            "tooltip": "Shape of the neighbourhood used for filtering",
         },
         "size": {
             "name": "Width/Radius",
             "default": 5,
+            "tooltip": "Width of the square/cube or radius of the disk/ball used to define the neighbourhood",
         },
         "method": {
             "name": "Method",
             "default": "median",
             "values": list(funcs.keys()),
+            "tooltip": "Filtering method to apply to the neighbourhood",
         },
     }
+
+    tooltip: str = (
+        "Apply a rank filter to the image. Note that 3D filters cannot be used on 2D images and vice versa."
+    )
 
     def __init__(self, params: dict):
         if params["footprint"] not in self.filters:
