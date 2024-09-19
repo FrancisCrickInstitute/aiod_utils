@@ -57,6 +57,12 @@ class Preprocess:
     #     """Check if the image is valid for the preprocessing function"""
     #     raise NotImplementedError
 
+    def __str__(self) -> str:
+        final_str = f"{self.name}-"
+        for k, v in self.kwarg_params.items():
+            final_str += f"{k}={v}-"
+        return final_str[:-1]
+
 
 class Downsample(Preprocess):
     name: str = "Downsample"
@@ -278,7 +284,7 @@ def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Pat
     return img
 
 
-def get_preprocess_options():
+def get_preprocess_methods():
     # Return a dictionary of the available preprocess subclasses sorted by name
     return dict(
         sorted(
@@ -288,6 +294,34 @@ def get_preprocess_options():
             }.items()
         )
     )
+
+
+def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> str:
+    if isinstance(methods, (str, Path)):
+        methods = Path(methods)
+        # Handle JSON
+        if methods.suffix == ".json":
+            with open(methods, "r") as f:
+                methods = json.load(f)
+        # Handle YAML
+        elif methods.suffix in [".yaml", ".yml"]:
+            with open(methods, "r") as f:
+                methods = yaml.safe_load(f)
+    # Check all methods are valid
+    methods = parse_methods(methods)
+    # If no method is specified, return the original image
+    if len(methods) == 0:
+        return ""
+    # Run the methods in order
+    res = []
+    for method_dict in methods:
+        method, params = method_dict["name"], method_dict["params"]
+        # Get the selected preprocess class
+        preprocess_cls = {cls.name: cls for cls in Preprocess.__subclasses__()}[method]
+        # Create instance with args
+        cls = preprocess_cls(params=params)
+        res.append(str(cls))
+    return "_".join(res)
 
 
 if __name__ == "__main__":
