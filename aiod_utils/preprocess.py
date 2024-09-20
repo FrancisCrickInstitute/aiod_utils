@@ -20,6 +20,8 @@ class Preprocess:
     params: dict = None
     # A tooltip for the UI
     tooltip: str = None
+    # A flag to indicate if the function will change the image shape
+    shape_change: bool = False
 
     def __init__(self, params: dict):
         # Check if the subclass has defined the required attributes
@@ -67,6 +69,8 @@ class Preprocess:
 class Downsample(Preprocess):
     name: str = "Downsample"
 
+    shape_change: bool = True
+
     methods: dict = {
         "mean": np.mean,
         "median": np.median,
@@ -96,8 +100,25 @@ class Downsample(Preprocess):
             raise ValueError("Invalid method for downsampling!")
         super().__init__(params)
 
+    def check_input(self, img_shape: tuple[int, ...]):
+        # Check the block size is valid
+        if len(self.kwarg_params["block_size"]) != len(img_shape):
+            raise ValueError(
+                f"Block size ({self.kwarg_params['block_size']}) must have the same length as the image shape ({img_shape})"
+            )
+
+    def get_output_shape(self, input_shape: tuple[int, ...]) -> tuple[int, ...]:
+        self.check_input(input_shape)
+        return tuple(
+            [
+                int(np.ceil(s / bs))
+                for s, bs in zip(input_shape, self.kwarg_params["block_size"])
+            ]
+        )
+
     def run(self, img):
         orig_dtype = img.dtype
+        self.check_input(img.shape)
         # Round the result to the nearest integer to avoid rounding down when casting back to original dtype
         return np.round(
             block_reduce(
@@ -254,15 +275,7 @@ def check_method(method, params):
         raise ValueError(f"Invalid parameters for {method} ({params}): {e}")
 
 
-def parse_methods(methods: Optional[list[dict]]):
-    if methods is None:
-        return []
-    for method in methods:
-        check_method(method["name"], method["params"])
-    return methods
-
-
-def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Path]]):
+def load_methods(methods: Union[list[dict], str, Path]):
     if isinstance(methods, (str, Path)):
         methods = Path(methods)
         # Handle JSON
@@ -273,6 +286,19 @@ def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Pat
         elif methods.suffix in [".yaml", ".yml"]:
             with open(methods, "r") as f:
                 methods = yaml.safe_load(f)
+    return methods
+
+
+def parse_methods(methods: Optional[list[dict]]):
+    if methods is None:
+        return []
+    for method in methods:
+        check_method(method["name"], method["params"])
+    return methods
+
+
+def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Path]]):
+    methods = load_methods(methods)
     # Check all methods are valid
     methods = parse_methods(methods)
     # If no method is specified, return the original image
@@ -297,16 +323,7 @@ def get_preprocess_methods():
 
 
 def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> str:
-    if isinstance(methods, (str, Path)):
-        methods = Path(methods)
-        # Handle JSON
-        if methods.suffix == ".json":
-            with open(methods, "r") as f:
-                methods = json.load(f)
-        # Handle YAML
-        elif methods.suffix in [".yaml", ".yml"]:
-            with open(methods, "r") as f:
-                methods = yaml.safe_load(f)
+    methods = load_methods(methods)
     # Check all methods are valid
     methods = parse_methods(methods)
     # If no method is specified, return the original image
@@ -322,6 +339,24 @@ def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> st
         cls = preprocess_cls(params=params)
         res.append(str(cls))
     return "_".join(res)
+
+
+def get_output_shape(options, input_shape: tuple[int, ...]):
+    methods = load_methods(options)
+    methods = parse_methods(methods)
+    # If no method is specified, return the input shape
+    if len(methods) == 0:
+        return input_shape
+    output_shape = input_shape
+    for method_dict in methods:
+        method, params = method_dict["name"], method_dict["params"]
+        # Get the selected preprocess class
+        preprocess_cls = {cls.name: cls for cls in Preprocess.__subclasses__()}[method]
+        # Only update the shape if the method changes it
+        if preprocess_cls.shape_change:
+            cls = preprocess_cls(params=params)
+            output_shape = cls.get_output_shape(output_shape)
+    return output_shape
 
 
 if __name__ == "__main__":
