@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional, Union
 
 from cv2 import createCLAHE
-import matplotlib.pyplot as plt
 import numpy as np
 from skimage.measure import block_reduce
 import skimage.io
