@@ -4,6 +4,7 @@ import warnings
 
 from bioio import BioImage
 from bioio_base.reader import Reader
+import numpy as np
 from skimage.io import imread
 
 
