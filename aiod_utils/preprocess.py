@@ -2,6 +2,7 @@ from abc import abstractmethod
 import json
 from pathlib import Path
 from typing import Optional, Union
+import warnings
 
 from cv2 import createCLAHE
 import numpy as np
@@ -119,13 +120,32 @@ class Downsample(Preprocess):
         orig_dtype = img.dtype
         self.check_input(img.shape)
         # Round the result to the nearest integer to avoid rounding down when casting back to original dtype
-        return np.round(
+        res = np.round(
             block_reduce(
                 img,
                 block_size=tuple(self.kwarg_params["block_size"]),
                 func=self.methods[self.kwarg_params["method"]],
             )
         ).astype(orig_dtype)
+        # Store slice objects for each dim in turn
+        slices = []
+        changed = False
+        # We care if padding was needed, so look at original image size
+        for i, size in enumerate(img.shape):
+            down_size = res.shape[i]
+            if size % self.kwarg_params["block_size"][i] == 0:
+                # But we use the downsampled size for slicing
+                # If divisable by block size, we can use the full size
+                slices.append(slice(0, down_size))
+            else:
+                # Otherwise, remove the padded row/col/etc. from the downsampled image
+                changed = True
+                slices.append(slice(0, down_size - 1))
+        if changed:
+            warnings.warn(
+                "Downsampling factor requires padding, so the image was cropped! Final result will have at least 1 pixel gap."
+            )
+        return res[tuple(slices)]
 
 
 class CLAHE(Preprocess):
