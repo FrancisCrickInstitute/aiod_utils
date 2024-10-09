@@ -37,8 +37,7 @@ def load_image(
         )
         return imread(fpath)
     # Load the image with the requested reader
-    # Default reader is None, and bioio determines which to use
-    # NOTE: bioio uses the most recently installed reader that matches the extension
+    # Default reader is None, and bioio determines which to use (most recently installed for that extension)
     img = BioImage(fpath, reader=reader)
     # Do some basic checks to flag potential issues
     if sense_check:
@@ -48,9 +47,10 @@ def load_image(
                 if ensure_channel_lower_depth:
                     dim_order = dim_order.translate(str.maketrans("CZ", "ZC"))
                     # This has no effect if not returning an array
+                    # TODO: Look into manipulating BioIO dims to force change when loading data later
                     if not any([return_array, return_dask]):
-                        raise ValueError(
-                            "If ensure_channel_lower_depth=True, you should also return an array or a dask array!"
+                        warnings.warn(
+                            "If ensure_channel_lower_depth=True, you should also return an array or a dask array otherwise nothing changes!"
                         )
                 else:
                     warnings.warn(
