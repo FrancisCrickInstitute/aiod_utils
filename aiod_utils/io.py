@@ -103,7 +103,7 @@ def round_idxs(start: int, end: int, downsample_factor: int):
     We need to convert idxs in fnames to downsampled idxs, which may not divide cleanly.
     If we round down the start we increase size, so need to round different according to whether start or end is indivisable.
     """
-    if start % downsample_factor != 0:
+    if (end - start) % downsample_factor != 0:
         start = int(np.ceil(start / downsample_factor))
         end = int(np.floor(end / downsample_factor))
     else:

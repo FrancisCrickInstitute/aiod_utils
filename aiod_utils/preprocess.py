@@ -109,12 +109,15 @@ class Downsample(Preprocess):
 
     def get_output_shape(self, input_shape: tuple[int, ...]) -> tuple[int, ...]:
         self.check_input(input_shape)
-        return tuple(
-            [
-                int(np.ceil(s / bs))
-                for s, bs in zip(input_shape, self.kwarg_params["block_size"])
-            ]
-        )
+        res = []
+        for s, bs in zip(input_shape, self.kwarg_params["block_size"]):
+            # Get the remainder as a result of padding
+            out = int(np.ceil(s / bs))
+            if s % bs == 0:
+                res.append(out)
+            else:
+                res.append(out - (s % bs))
+        return tuple(res)
 
     def run(self, img):
         orig_dtype = img.dtype
@@ -133,14 +136,15 @@ class Downsample(Preprocess):
         # We care if padding was needed, so look at original image size
         for i, size in enumerate(img.shape):
             down_size = res.shape[i]
-            if size % self.kwarg_params["block_size"][i] == 0:
+            pad_size = size % self.kwarg_params["block_size"][i]
+            if pad_size == 0:
                 # But we use the downsampled size for slicing
                 # If divisable by block size, we can use the full size
                 slices.append(slice(0, down_size))
             else:
-                # Otherwise, remove the padded row/col/etc. from the downsampled image
+                # Otherwise, remove the padded row(s)/col(s)/etc. from the downsampled image
                 changed = True
-                slices.append(slice(0, down_size - 1))
+                slices.append(slice(0, down_size - pad_size))
         if changed:
             warnings.warn(
                 "Downsampling factor requires padding, so the image was cropped! Final result will have at least 1 pixel gap."
