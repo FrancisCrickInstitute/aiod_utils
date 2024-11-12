@@ -4,6 +4,6 @@ bioio-ome-zarr
 bioio-tifffile
 numpy
 opencv-python
-pycocotools
 scikit-image
 pyyaml
+torch
