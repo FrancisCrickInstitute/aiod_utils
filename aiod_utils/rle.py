@@ -18,15 +18,7 @@ def encode(
         mask = torch.from_numpy(mask)
     # Try to infer the mask type if not provided
     if mask_type is None:
-        # Boolean masks are binary
-        if mask.dtype == torch.bool:
-            mask_type = "binary"
-        # Masks with only 2 unique values are binary
-        elif mask.unique().shape[0] <= 2:
-            mask_type = "binary"
-        # Otherwise, it's an instance mask
-        else:
-            mask_type = "instance"
+        mask_type = check_mask_type(mask)
         warnings.warn(f"Mask type not provided, inferring as {mask_type}")
     # Give a batch dimension if it's not there
     if mask.ndim == 2:
@@ -39,6 +31,19 @@ def encode(
         mask = mask.long()
         res = _encode_instance(mask)
     return res
+
+
+def check_mask_type(mask: torch.Tensor) -> str:
+    # Boolean masks are binary
+    if mask.dtype == torch.bool:
+        mask_type = "binary"
+    # Masks with only 2 unique values are binary
+    elif mask.unique().shape[0] <= 2:
+        mask_type = "binary"
+    # Otherwise, it's an instance mask
+    else:
+        mask_type = "instance"
+    return mask_type
 
 
 def _encode_binary(mask, **kwargs) -> list[dict]:
@@ -111,10 +116,7 @@ def _encode_instance(mask: torch.Tensor) -> list[dict]:
 def decode(rle: dict[list], mask_type: Optional[str] = None) -> np.ndarray:
     # Try to infer the mask type if not provided
     if mask_type is None:
-        if isinstance(rle[0], list):
-            mask_type = "instance"
-        else:
-            mask_type = "binary"
+        mask_type = check_rle_type(rle)
         warnings.warn(f"Mask type not provided, inferring as {mask_type}")
     # TODO: Some basic checks for rle key validity
     if mask_type == "binary":
@@ -123,6 +125,14 @@ def decode(rle: dict[list], mask_type: Optional[str] = None) -> np.ndarray:
         # TODO: Some additional checks for keys for instance masks?
         res = _decode_instance(rle)
     return res
+
+
+def check_rle_type(rle: list[dict]) -> str:
+    if isinstance(rle[0], list):
+        mask_type = "instance"
+    else:
+        mask_type = "binary"
+    return mask_type
 
 
 def _decode_binary(rle: list[dict]) -> np.ndarray:
