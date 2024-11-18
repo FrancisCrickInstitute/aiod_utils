@@ -1,6 +1,6 @@
 from pathlib import Path
 import pickle
-from typing import Union, Optional
+from typing import Union, Optional, Any
 import warnings
 
 import numpy as np
@@ -10,7 +10,9 @@ EXTENSIONS = [".pkl", ".pickle", ".rle"]
 
 
 def encode(
-    mask: Union[np.ndarray, torch.Tensor], mask_type: Optional[str] = None
+    mask: Union[np.ndarray, torch.Tensor],
+    mask_type: Optional[str] = None,
+    metadata: dict[str, Any] = {},
 ) -> list[dict]:
     assert isinstance(
         mask, (np.ndarray, torch.Tensor)
@@ -28,10 +30,12 @@ def encode(
     if mask_type == "binary":
         # Ensure mask is boolean (rather than 2 unique values, it's faster)
         mask = mask.bool()
-        res = _encode_binary(mask)
+        res = _encode_binary(mask, **metadata)
     elif mask_type == "instance":
         mask = mask.long()
-        res = _encode_instance(mask)
+        res = _encode_instance(mask, **metadata)
+    # Insert metadata
+    res.append({"metadata": metadata})
     return res
 
 
@@ -89,7 +93,7 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     return out
 
 
-def _encode_instance(mask: torch.Tensor) -> list[dict]:
+def _encode_instance(mask: torch.Tensor, **kwargs) -> list[dict]:
     """
     Note that this is much slower than the binary encoding.
     This needs to be used for models like SAM, where instance masks overlap.
@@ -109,24 +113,26 @@ def _encode_instance(mask: torch.Tensor) -> list[dict]:
         mask_batch = mask_slice.unsqueeze(0) == instances.unique().view(-1, 1, 1)
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
-        encoded_masks = _encode_binary(mask_batch, idx=instances)
+        encoded_masks = _encode_binary(mask_batch, idx=instances, **kwargs)
         # Store the encoded masks
         out.append(encoded_masks)
     return out
 
 
-def decode(rle: dict[list], mask_type: Optional[str] = None) -> np.ndarray:
+def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray, dict]:
     # Try to infer the mask type if not provided
     if mask_type is None:
         mask_type = check_rle_type(rle)
         warnings.warn(f"Mask type not provided, inferring as {mask_type}")
     # TODO: Some basic checks for rle key validity
+    # Pop out the metadata
+    metadata = rle.pop()
     if mask_type == "binary":
         res = _decode_binary(rle)
     elif mask_type == "instance":
         # TODO: Some additional checks for keys for instance masks?
         res = _decode_instance(rle)
-    return res
+    return res, metadata
 
 
 def check_rle_type(rle: list[dict]) -> str:
