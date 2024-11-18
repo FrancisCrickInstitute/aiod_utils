@@ -6,6 +6,8 @@ import warnings
 import numpy as np
 import torch
 
+EXTENSIONS = [".pkl", ".pickle", ".rle"]
+
 
 def encode(
     mask: Union[np.ndarray, torch.Tensor], mask_type: Optional[str] = None
@@ -177,9 +179,11 @@ def save_encoding(rle: list[dict], fpath: Union[str, Path]):
     # Ensure filename matches
     if not isinstance(fpath, Path):
         fpath = Path(fpath)
-    # Ensure it's a .pkl file (will be handled by Napari properly then)
-    if fpath.suffix != ".pkl":
-        fpath = fpath.with_suffix(".pkl")
+    # Ensure it's a .pkl file, or other valid extension
+    if fpath.suffix not in EXTENSIONS:
+        raise ValueError(
+            f"Filename cannot have extension {fpath.suffix}, must be one of: {EXTENSIONS}"
+        )
     # Save the RLE
     with open(fpath, "wb") as f:
         pickle.dump(rle, f)
@@ -193,7 +197,9 @@ def load_encoding(fpath: Union[str, Path]) -> list[dict]:
     if not fpath.exists():
         raise FileNotFoundError(f"{fpath} does not exist!")
     # Cannot load if not a .pkl file
-    if fpath.suffix != ".pkl":
-        raise ValueError(f"{fpath} is not a .pkl file!")
+    if fpath.suffix not in EXTENSIONS:
+        raise ValueError(
+            f"{fpath} must have an extension in {EXTENSIONS}, not {fpath.suffix}!"
+        )
     with open(fpath, "rb") as f:
         return pickle.load(f)
