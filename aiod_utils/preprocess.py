@@ -364,6 +364,19 @@ def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> st
     return "_".join(res)
 
 
+def get_downsample_factor(
+    methods: Optional[Union[list[dict], str, Path]]
+) -> Optional[tuple[int, ...]]:
+    methods = load_methods(methods)
+    methods = parse_methods(methods)
+    factor = None
+    for d in methods:
+        if d["name"] == "Downsample":
+            factor = d["params"]["block_size"]
+            break
+    return factor
+
+
 def get_output_shape(options, input_shape: tuple[int, ...]):
     methods = load_methods(options)
     methods = parse_methods(methods)
