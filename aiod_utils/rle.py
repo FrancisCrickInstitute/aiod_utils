@@ -19,7 +19,7 @@ def encode(
     ), f"mask must be a numpy array or torch tensor, not {type(mask)}"
     # Convert to torch tensor
     if isinstance(mask, np.ndarray):
-        mask = torch.from_numpy(mask)
+        mask = torch.from_numpy(mask.astype(np.int32))
     # Try to infer the mask type if not provided
     if mask_type is None:
         mask_type = check_mask_type(mask)
