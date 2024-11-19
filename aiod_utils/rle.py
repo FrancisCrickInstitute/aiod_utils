@@ -109,8 +109,13 @@ def _encode_instance(mask: torch.Tensor, **kwargs) -> list[dict]:
         instances = torch.unique(mask_slice)
         # Remove the background
         instances = instances[instances != 0]
-        # Convert into a batch of binarised masks for each instance
-        mask_batch = mask_slice.unsqueeze(0) == instances.unique().view(-1, 1, 1)
+        # Handle the case where there are no instances
+        if len(instances) == 0:
+            mask_batch = torch.zeros_like(mask_slice, dtype=torch.bool).unsqueeze(0)
+            instances = torch.tensor([0], dtype=torch.uint8)
+        else:
+            # Convert into a batch of binarised masks for each instance
+            mask_batch = mask_slice.unsqueeze(0) == instances.unique().view(-1, 1, 1)
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
         encoded_masks = _encode_binary(mask_batch, idx=instances, **kwargs)
