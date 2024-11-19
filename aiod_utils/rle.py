@@ -164,7 +164,7 @@ def _decode_binary(rle: list[dict]) -> np.ndarray:
         # Reshape and put in C order (encoded in Fortran order)
         mask = mask.reshape(w, h).transpose()
         res.append(mask)
-    return np.stack(res)
+    return np.stack(res, axis=0, dtype=bool)
 
 
 def _decode_instance(rle) -> np.ndarray:
@@ -177,9 +177,9 @@ def _decode_instance(rle) -> np.ndarray:
         decoded_slice = _decode_binary(rle_slice)
         # Convert stack of binary masks for each instance into a single instance mask
         # Get the instance indices to multiply by the binary masks
-        instance_indices = np.array([r["idx"] for r in rle_slice], dtype=np.uint32)
+        instance_indices = np.array([r["idx"] for r in rle_slice], dtype=np.uint16)
         # Multiply the binary masks by the instance indices and sum to flatten
-        decoded_slice = (decoded_slice * instance_indices[:, None, None]).sum(axis=0)
+        decoded_slice = np.einsum("ijk,i->jk", decoded_slice, instance_indices)
         # Append the decoded slice
         out.append(decoded_slice)
     # Reconstruct the full mask array
