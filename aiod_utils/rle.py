@@ -214,3 +214,17 @@ def load_encoding(fpath: Union[str, Path]) -> list[dict]:
         )
     with open(fpath, "rb") as f:
         return pickle.load(f)
+
+
+def binary_to_instance(rle):
+    # TODO: We could possibly shortcut the conversion and avoid decoding
+    mask, metadata = decode(rle, mask_type="binary")
+    rle_instance = encode(mask, mask_type="instance", metadata=metadata["metadata"])
+    return rle_instance
+
+
+def instance_to_binary(rle):
+    # TODO: We could possibly shortcut the conversion and avoid decoding
+    mask, metadata = decode(rle, mask_type="instance")
+    rle_binary = encode(mask, mask_type="binary", metadata=metadata["metadata"])
+    return rle_binary
