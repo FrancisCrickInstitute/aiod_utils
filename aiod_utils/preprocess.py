@@ -298,7 +298,7 @@ def check_method(method, params):
         raise ValueError(f"Invalid parameters for {method} ({params}): {e}")
 
 
-def load_methods(methods: Union[list[dict], str, Path]):
+def load_methods(methods: Union[list[dict], str, Path], parse: bool = True):
     if isinstance(methods, (str, Path)):
         methods = Path(methods)
         # Handle JSON
@@ -309,7 +309,10 @@ def load_methods(methods: Union[list[dict], str, Path]):
         elif methods.suffix in [".yaml", ".yml"]:
             with open(methods, "r") as f:
                 methods = yaml.safe_load(f)
-    return methods
+    if parse:
+        return parse_methods(methods)
+    else:
+        return methods
 
 
 def parse_methods(methods: Optional[list[dict]]):
@@ -321,9 +324,8 @@ def parse_methods(methods: Optional[list[dict]]):
 
 
 def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Path]]):
-    methods = load_methods(methods)
-    # Check all methods are valid
-    methods = parse_methods(methods)
+    # Load and check all methods are valid
+    methods = load_methods(methods, parse=True)
     # If no method is specified, return the original image
     if len(methods) == 0:
         return img
@@ -333,6 +335,7 @@ def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Pat
     return img
 
 
+# TODO: Rename to 'all', as this implies selected
 def get_preprocess_methods():
     # Return a dictionary of the available preprocess subclasses sorted by name
     return dict(
@@ -346,9 +349,8 @@ def get_preprocess_methods():
 
 
 def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> str:
-    methods = load_methods(methods)
-    # Check all methods are valid
-    methods = parse_methods(methods)
+    # Load and check all methods are valid
+    methods = load_methods(methods, parse=True)
     # If no method is specified, return the original image
     if len(methods) == 0:
         return ""
@@ -367,8 +369,8 @@ def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> st
 def get_downsample_factor(
     methods: Optional[Union[list[dict], str, Path]]
 ) -> Optional[tuple[int, ...]]:
-    methods = load_methods(methods)
-    methods = parse_methods(methods)
+    # Load and check all methods are valid
+    methods = load_methods(methods, parse=True)
     factor = None
     for d in methods:
         if d["name"] == "Downsample":
@@ -378,8 +380,8 @@ def get_downsample_factor(
 
 
 def get_output_shape(options, input_shape: tuple[int, ...]):
-    methods = load_methods(options)
-    methods = parse_methods(methods)
+    # Load and check all methods are valid
+    methods = load_methods(options, parse=True)
     # If no method is specified, return the input shape
     if len(methods) == 0:
         return input_shape
