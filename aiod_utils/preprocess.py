@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import json
 from pathlib import Path
+import re
 from typing import Optional, Union
 import warnings
 
@@ -63,6 +64,13 @@ class Preprocess:
         final_str = f"{self.name}-"
         for k, v in self.kwarg_params.items():
             final_str += f"{k}={v}-"
+        return final_str[:-1]
+
+    def get_save_str(self) -> str:
+        final_str = f"{self.name}-"
+        for k, v in self.kwarg_params.items():
+            param_value = f"{v}".translate(str.maketrans("", "", " []()"))
+            final_str += f"{k}={param_value}-"
         return final_str[:-1]
 
 
@@ -315,17 +323,26 @@ def load_methods(methods: Union[list[dict], str, Path], parse: bool = True):
         return methods
 
 
-def parse_methods(methods: Optional[list[dict]]):
+def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
     if methods is None:
         return []
-    for method in methods:
-        check_method(method["name"], method["params"])
+    # Handle parsing the full JSON of multiple sets
+    if isinstance(methods[0], list):
+        for method_set in methods:
+            for method in method_set:
+                check_method(method["name"], method["params"])
+    # Handle parsing a single, preloaded set
+    else:
+        for method in methods:
+            check_method(method["name"], method["params"])
     return methods
 
 
-def run_preprocess(img: np.ndarray, methods: Optional[Union[list[dict], str, Path]]):
+def run_preprocess(
+    img: np.ndarray, methods: Optional[Union[list[dict], str, Path]], parse: bool = True
+):
     # Load and check all methods are valid
-    methods = load_methods(methods, parse=True)
+    methods = load_methods(methods, parse=parse)
     # If no method is specified, return the original image
     if len(methods) == 0:
         return img
@@ -348,12 +365,14 @@ def get_preprocess_methods():
     )
 
 
-def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> str:
+# TODO: Name this function better, come on!
+def get_preprocess_params(
+    methods: Optional[Union[list[dict], str, Path]], to_save: bool = False
+) -> str:
+    if methods is None:
+        return
     # Load and check all methods are valid
     methods = load_methods(methods, parse=True)
-    # If no method is specified, return the original image
-    if len(methods) == 0:
-        return ""
     # Run the methods in order
     res = []
     for method_dict in methods:
@@ -361,27 +380,44 @@ def get_preprocess_params(methods: Optional[Union[list[dict], str, Path]]) -> st
         # Get the selected preprocess class
         preprocess_cls = {cls.name: cls for cls in Preprocess.__subclasses__()}[method]
         # Create instance with args
-        cls = preprocess_cls(params=params)
-        res.append(str(cls))
+        prep_inst = preprocess_cls(params=params)
+        if to_save:
+            res.append(prep_inst.get_save_str())
+        else:
+            res.append(str(prep_inst))
     return "_".join(res)
 
 
 def get_downsample_factor(
-    methods: Optional[Union[list[dict], str, Path]]
+    methods: Optional[Union[list[dict], str, Path]] = None,
+    filename: Optional[str] = None,
 ) -> Optional[tuple[int, ...]]:
-    # Load and check all methods are valid
-    methods = load_methods(methods, parse=True)
-    factor = None
-    for d in methods:
-        if d["name"] == "Downsample":
-            factor = d["params"]["block_size"]
-            break
+    """Overloaded function to get downsample factor from either methods or filename"""
+    if methods is None and filename is None:
+        raise ValueError("Must provide either methods or filename!")
+    if filename is not None:
+        downsample_factor = re.findall(
+            r"Downsample-block_size=(\d),(\d),(\d)", filename
+        )
+        if len(downsample_factor) == 0:
+            factor = None
+        else:
+            # Should only be one match, so extract the tuple
+            factor = tuple(map(int, downsample_factor[0]))
+    elif methods is not None:
+        # Load and check all methods are valid
+        methods = load_methods(methods, parse=False)
+        factor = None
+        for d in methods:
+            if d["name"] == "Downsample":
+                factor = d["params"]["block_size"]
+                break
     return factor
 
 
 def get_output_shape(options, input_shape: tuple[int, ...]):
     # Load and check all methods are valid
-    methods = load_methods(options, parse=True)
+    methods = load_methods(options, parse=False)
     # If no method is specified, return the input shape
     if len(methods) == 0:
         return input_shape
