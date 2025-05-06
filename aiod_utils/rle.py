@@ -44,13 +44,22 @@ def check_mask_type(mask: torch.Tensor) -> str:
     if mask.dtype == torch.bool:
         mask_type = "binary"
     # Masks with only 2 unique values are binary
-    elif mask.unique().shape[0] <= 2:
-        mask_type = "binary"
-    # Otherwise, it's an instance mask
     else:
-        mask_type = "instance"
+        if _check_binary_mask(mask):
+            mask_type = "binary"
+        # Otherwise, it's an instance mask
+        else:
+            mask_type = "instance"
     return mask_type
 
+def _check_binary_mask(mask: torch.Tensor) -> bool:
+    # To avoid expensive .unique() call, we just early-exit if more than 2 values found
+    unique_vals = set()
+    for val in mask.view(-1):
+        unique_vals.add(val.item())
+        if len(unique_vals) > 2:
+            return False
+    return True
 
 def _encode_binary(mask, **kwargs) -> list[dict]:
     # https://github.com/facebookresearch/sam2/blob/c2ec8e14a185632b0a5d8b161928ceb50197eddc/sam2/utils/amg.py#L109
