@@ -110,3 +110,30 @@ def round_idxs(start: int, end: int, downsample_factor: int):
         start = int(np.floor(start / downsample_factor))
         end = int(np.floor(end / downsample_factor))
     return start, end
+
+def check_dtype(arr: np.ndarray, max_val: Optional[int] = None):
+    # Get the max value in the array if not provided
+    if max_val is None:
+        max_val = arr.max()
+    # Get the appropriate dtype from the max value
+    if max_val < 256:
+        best_dtype = np.uint8
+    elif max_val < 65536:
+        best_dtype = np.uint16
+    # Surely it doesn't need more than 32 bits...
+    else:
+        best_dtype = np.uint32
+    return best_dtype
+
+
+def reduce_dtype(arr: np.ndarray, max_val: Optional[int] = None):
+    # Get the lowest bit dtype for the array
+    best_dtype = check_dtype(arr, max_val)
+    curr_dtype = arr.dtype
+    # If the current dtype is already the best, return the array
+    if curr_dtype == best_dtype:
+        return arr
+    # Otherwise convert it
+    else:
+        return arr.astype(best_dtype, copy=False)
+
