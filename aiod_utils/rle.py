@@ -6,6 +6,8 @@ import warnings
 import numpy as np
 import torch
 
+from aiod_utils.io import reduce_dtype
+
 EXTENSIONS = [".pkl", ".pickle", ".rle"]
 
 
@@ -19,7 +21,8 @@ def encode(
     ), f"mask must be a numpy array or torch tensor, not {type(mask)}"
     # Convert to torch tensor
     if isinstance(mask, np.ndarray):
-        mask = torch.from_numpy(mask.astype(np.int32))
+        # Convert to lowest bit type
+        mask = torch.from_numpy(reduce_dtype(mask))
     # Try to infer the mask type if not provided
     if mask_type is None:
         mask_type = check_mask_type(mask)
