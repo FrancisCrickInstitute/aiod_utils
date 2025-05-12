@@ -283,14 +283,18 @@ class Filter(Preprocess):
 
 
 def run_method(
-    img: np.ndarray, method: Optional[str] = None, params: Optional[dict] = None
+    img: np.ndarray, method: Optional[str] = None, params: Optional[dict] = None, only_check: bool = False
 ):
     # Get the selected preprocess class
     preprocess_cls = {cls.name: cls for cls in Preprocess.__subclasses__()}[method]
     # Create instance with args
     cls = preprocess_cls(params=params)
     # Run the preprocess
-    return cls.run(img)
+    if only_check:
+        # Check the image is valid for the preprocessing function
+        cls.check_input(img)
+    else:
+        return cls.run(img)
 
 
 def check_method(method, params):
@@ -339,7 +343,7 @@ def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
 
 
 def run_preprocess(
-    img: np.ndarray, methods: Optional[Union[list[dict], str, Path]], parse: bool = True
+    img: np.ndarray, methods: Optional[Union[list[dict], str, Path]], parse: bool = True, only_check: bool = False
 ):
     # Load and check all methods are valid
     methods = load_methods(methods, parse=parse)
@@ -348,12 +352,11 @@ def run_preprocess(
         return img
     # Run the methods in order
     for method in methods:
-        img = run_method(img, method["name"], method["params"])
+        img = run_method(img, method["name"], method["params"], only_check=only_check)
     return img
 
 
-# TODO: Rename to 'all', as this implies selected
-def get_preprocess_methods():
+def get_all_preprocess_methods():
     # Return a dictionary of the available preprocess subclasses sorted by name
     return dict(
         sorted(
@@ -365,10 +368,10 @@ def get_preprocess_methods():
     )
 
 
-# TODO: Name this function better, come on!
-def get_preprocess_params(
+def get_params_str(
     methods: Optional[Union[list[dict], str, Path]], to_save: bool = False
 ) -> str:
+    """Get the string representation of the parameters for the given methods"""
     if methods is None:
         return
     # Load and check all methods are valid
