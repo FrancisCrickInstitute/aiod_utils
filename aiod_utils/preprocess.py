@@ -55,10 +55,16 @@ class Preprocess:
     def run(self, img):
         raise NotImplementedError
 
-    # @abstractmethod
-    # def check_image(self, img):
-    #     """Check if the image is valid for the preprocessing function"""
-    #     raise NotImplementedError
+    def check_input(self, img):
+        """
+        Check if the image is valid for the preprocessing function.
+
+        Sometimes we'll just let the underlying function throw an error, but this is useful for
+        checking the input before running the function.
+
+        We return the image so that it can be run to check and behave same as the run method.
+        """
+        return img
 
     def __str__(self) -> str:
         final_str = f"{self.name}-"
@@ -108,15 +114,20 @@ class Downsample(Preprocess):
             raise ValueError("Invalid method for downsampling!")
         super().__init__(params)
 
-    def check_input(self, img_shape: tuple[int, ...]):
+    def check_input(self, img=None, input_shape: Optional[tuple[int, ...]] = None):
         # Check the block size is valid
-        if len(self.kwarg_params["block_size"]) != len(img_shape):
+        if input_shape is None:
+            if img is None:
+                raise ValueError("Must provide either an image or input shape!")
+            input_shape = img.shape
+        if len(self.kwarg_params["block_size"]) != len(input_shape):
             raise ValueError(
                 f"Block size ({self.kwarg_params['block_size']}) must have the same length as the image shape ({img_shape})"
             )
+        return img
 
     def get_output_shape(self, input_shape: tuple[int, ...]) -> tuple[int, ...]:
-        self.check_input(input_shape)
+        self.check_input(input_shape=input_shape)
         res = []
         for s, bs in zip(input_shape, self.kwarg_params["block_size"]):
             # Get the remainder as a result of padding
@@ -129,7 +140,7 @@ class Downsample(Preprocess):
 
     def run(self, img):
         orig_dtype = img.dtype
-        self.check_input(img.shape)
+        self.check_input(img=img)
         # Round the result to the nearest integer to avoid rounding down when casting back to original dtype
         res = np.round(
             block_reduce(
@@ -258,7 +269,7 @@ class Filter(Preprocess):
         super().__init__(params)
 
     def run(self, img):
-        img = self.check_input(img)
+        self.check_input(img)
         footprint = self.filters[self.kwarg_params["footprint"]](
             self.kwarg_params.pop("size")
         )
@@ -283,7 +294,10 @@ class Filter(Preprocess):
 
 
 def run_method(
-    img: np.ndarray, method: Optional[str] = None, params: Optional[dict] = None, only_check: bool = False
+    img: np.ndarray,
+    method: Optional[str] = None,
+    params: Optional[dict] = None,
+    only_check: bool = False,
 ):
     # Get the selected preprocess class
     preprocess_cls = {cls.name: cls for cls in Preprocess.__subclasses__()}[method]
@@ -292,7 +306,7 @@ def run_method(
     # Run the preprocess
     if only_check:
         # Check the image is valid for the preprocessing function
-        cls.check_input(img)
+        return cls.check_input(img)
     else:
         return cls.run(img)
 
@@ -343,7 +357,10 @@ def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
 
 
 def run_preprocess(
-    img: np.ndarray, methods: Optional[Union[list[dict], str, Path]], parse: bool = True, only_check: bool = False
+    img: np.ndarray,
+    methods: Optional[Union[list[dict], str, Path]],
+    parse: bool = True,
+    only_check: bool = False,
 ):
     # Load and check all methods are valid
     methods = load_methods(methods, parse=parse)
