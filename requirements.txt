@@ -1,8 +1,8 @@
-bioio
+bioio >= 1.5.0
 bioio-imageio
 bioio-ome-zarr
-bioio-tifffile
-numpy
+bioio-tifffile >= 1.1.0
+numpy >= 1.26, < 2.0
 opencv-python
 scikit-image
 pyyaml
