@@ -5,6 +5,6 @@ numcodecs < 0.16
 bioio-tifffile >= 1.1.0
 numpy >= 1.26, < 2.0
 opencv-python
-scikit-image
+scikit-image > 0.18
 pyyaml
 torch
