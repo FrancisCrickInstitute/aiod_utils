@@ -30,6 +30,14 @@ def encode(
     # Give a batch dimension if it's not there
     if mask.ndim == 2:
         mask = mask.unsqueeze(0)
+    elif mask.ndim >= 4:
+        # First try squeezing in case of pointless dims
+        mask = mask.squeeze()
+        # Raise an error if more than 3D, as we will struggle to guess H & W (& depth)
+        if mask.ndim >= 4:
+            raise ValueError(
+                f"Mask has {mask.ndim} dimensions, must be 2D or 3D (got {mask.shape})"
+            )
     if mask_type == "binary":
         # Ensure mask is boolean (rather than 2 unique values, it's faster)
         mask = mask.bool()
