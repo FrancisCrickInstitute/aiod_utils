@@ -22,8 +22,19 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 keywords = ["image analysis", "segmentation"]
-dynamic = ["dependencies", "optional-dependencies"]
+dependencies = [
+    "bioio>=1.5.0",
+    "bioio-imageio",
+    "bioio-ome-zarr",
+    "numcodecs<0.16",  # Zarr issue
+    "bioio-tifffile>=1.1.0",  # tifffile issue
+    "numpy>=1.26,<2.0",
+    "opencv-python",
+    "scikit-image>0.20",
+    "pyyaml",
+    "torch",
+]
 
-[tool.setuptools.dynamic]
-dependencies = { file = "requirements.txt" }
-optional-dependencies.bioformats = { file = "requirements-bioformats.txt" }
+[project.optional-dependencies]
+testing = ["pytest"]
+bioformats = ["bioio-bioformats"]
