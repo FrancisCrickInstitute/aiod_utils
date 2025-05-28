@@ -28,7 +28,7 @@ dependencies = [
     "bioio-ome-zarr>=1.2.0",
     "bioio-tifffile>=1.1.0",  # tifffile issue
     "numcodecs",
-    "zarr>=3.0",
+    "zarr>=2.8.16",
     "numpy>=1.26,<2.0",
     "opencv-python",
     "scikit-image>0.20",
