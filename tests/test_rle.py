@@ -28,7 +28,7 @@ def binary_3d_mask():
         [
             [[0, 1, 1], [1, 0, 0], [0, 1, 0]],
             [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
-            [[1, 0, 0], [0, 1, 1], [1, 0, 0]],
+            [[1, 1, 0], [1, 0, 1], [1, 0, 0]],
         ],
         dtype=np.uint8,
     )
@@ -38,17 +38,12 @@ def binary_3d_mask():
 def instance_3d_mask():
     return np.array(
         [
-            [[0, 1, 1], [3, 0, 0], [0, 2, 0]],
-            [[0, 0, 0], [4, 4, 4], [0, 0, 0]],
-            [[5, 0, 0], [0, 6, 6], [5, 0, 0]],
+            [[0, 1, 1], [2, 0, 0], [0, 3, 0]],
+            [[0, 0, 0], [2, 2, 2], [0, 0, 0]],
+            [[4, 4, 0], [4, 0, 2], [5, 0, 0]],
         ],
         dtype=np.uint8,
     )
-
-
-# @pytest.fixture
-# def binary_4d_mask():
-#     return np.random.randint(0, 2, (2, 3, 3, 3), dtype=np.uint8)
 
 
 # Check that encoding and deocding works for 2D & 3D binary masks
@@ -159,3 +154,24 @@ def test_rle_4d_mask():
     with pytest.raises(ValueError):
         # RLE encoding for 4D masks is not implemented
         encode(mask, mask_type="binary")
+
+
+@pytest.mark.parametrize(
+    "mask",
+    [
+        "binary_2d_mask",
+        "instance_2d_mask",
+        "binary_3d_mask",
+        "instance_3d_mask",
+    ],
+)
+def test_consistent_shape(mask, request):
+    from aiod_utils.rle import encode, decode
+
+    mask = request.getfixturevalue(mask)
+    # Encode the mask
+    rle = encode(mask, mask_type="binary")
+    # Decode the mask
+    decoded_mask, _ = decode(rle, mask_type="binary")
+    # Check that the decoded mask has the same shape as the original mask
+    assert decoded_mask.shape == mask.shape

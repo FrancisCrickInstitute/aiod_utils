@@ -148,7 +148,8 @@ def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray
     elif mask_type == "instance":
         # TODO: Some additional checks for keys for instance masks?
         res = _decode_instance(rle)
-    return res, metadata
+    # NOTE: We squeeze here as any 2D inputs are unsqueezed to 3D for simplicity when encoding
+    return res.squeeze(), metadata
 
 
 def check_rle_type(rle: list[dict]) -> str:
