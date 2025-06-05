@@ -35,6 +35,7 @@ dependencies = [
     "scikit-image>0.20",
     "pyyaml",
     "torch",
+    "pandas<2.3.0"
 ]
 
 [project.optional-dependencies]
