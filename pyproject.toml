@@ -23,9 +23,9 @@ classifiers = [
 ]
 keywords = ["image analysis", "segmentation"]
 dependencies = [
-    "bioio>=1.5.0",
+    "bioio>=2",
     "bioio-imageio>=1.1.0",
-    "bioio-ome-zarr<=1.1.2",
+    "bioio-ome-zarr>=2",
     "bioio-tifffile>=1.2.0",
     "tifffile",
     "numcodecs",
