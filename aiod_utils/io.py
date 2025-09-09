@@ -5,7 +5,7 @@ import warnings
 from bioio import BioImage
 from bioio_base.reader import Reader
 import numpy as np
-from skimage.io import imread
+from skimage.io import imread, imsave
 
 
 def load_image(
@@ -73,6 +73,27 @@ def load_image(
         return img.get_image_dask_data(dimension_order_out=dim_order)
     else:
         return img
+
+def save_image(
+    img,
+    fpath: Union[str, Path],
+    bits: Optional[int] = None,
+    metadata: Optional[dict] = None,
+    **kwargs,
+):
+    fpath = Path(fpath)
+    format = fpath.suffix
+    print('format: '+format)
+    print('saving image...')
+    if bits is not None:
+        img = reduce_dtype(img, max_val=bits)
+    if format in ['.jpg', '.jpeg', '.png']:
+        imsave(fpath, img)
+    else:
+        bio_img = BioImage(img, metadata=metadata)
+        bio_img.save(fpath)
+
+
 
 
 def extract_idxs_from_fname(
