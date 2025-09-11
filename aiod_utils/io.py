@@ -4,6 +4,7 @@ import warnings
 
 from bioio import BioImage
 from bioio_base.reader import Reader
+from bioio_base.writer import Writer
 import numpy as np
 from skimage.io import imread, imsave
 
@@ -74,24 +75,59 @@ def load_image(
     else:
         return img
 
+def resize_dim(img):
+    original_shape = img.shape  # Store the original shape
+    # Acceptable shapes: (M, N), (M, N, 3), (M, N, 4)
+    if len(original_shape) == 2 or (len(original_shape) == 3 and original_shape[2] in [3, 4]):
+        return img
+    # Squeeze singleton dimensions
+    squeezed = np.squeeze(img)
+    shape = squeezed.shape
+    if len(shape) == 2 or (len(shape) == 3 and shape[2] in [3, 4]):
+        warnings.warn(f"Resized image from {original_shape} to {shape} for saving.")
+        return squeezed
+    # If still too many dimensions, select the first slice along extra axes
+    while len(shape) > 3:
+        squeezed = squeezed[0]
+        shape = squeezed.shape
+    if len(shape) == 2 or (len(shape) == 3 and shape[2] in [3, 4]):
+        warnings.warn(f"Selected first slice, resized image from {original_shape} to {shape} for saving.")
+        return squeezed
+    raise ValueError(f"Cannot convert image to a supported shape for imsave. Got shape {original_shape}")
+
 def save_image(
     img,
-    fpath: Union[str, Path],
-    bits: Optional[int] = None,
+    save_dir: Union[str, Path],
+    save_name: str,
+    save_format: str,
+    save_multi: Optional[bool] = False, #stack or single
+    dtype: Optional[np.dtype] = None,
     metadata: Optional[dict] = None,
+    writer: Optional[Type[Writer]] = None, #for future implementation
     **kwargs,
 ):
-    fpath = Path(fpath)
-    format = fpath.suffix
-    print('format: '+format)
-    print('saving image...')
-    if bits is not None:
-        img = reduce_dtype(img, max_val=bits)
-    if format in ['.jpg', '.jpeg', '.png']:
-        imsave(fpath, img)
+    save_dir = Path(save_dir)
+    assert Path(save_dir).exists(), f"path:{save_dir} doesn't exist"
+    if not isinstance(img, np.ndarray):
+        if hasattr(img, "get_image_data"):
+            img = img.get_image_data()
+        else:
+            raise TypeError("Unsupported image type: Must be numpy array or have get_image_data() method")
+    if dtype is not None:
+        img = reduce_dtype(img, dtype)
+    if save_format in ['jpg', 'jpeg', 'png']:
+        img = resize_dim(img)
+        imsave(f'{save_dir}/{save_name}.{save_format}', img)
     else:
-        bio_img = BioImage(img, metadata=metadata)
-        bio_img.save(fpath)
+        if save_multi:
+            for t in range(img.shape[0]):
+                for c in range(img.shape[1]):
+                    for z in range(img.shape[2]):
+                        slice_img = img[t, c, z]
+                        slice_name = f"{save_name}_T{t}C{c}Z{z}.{save_format}"
+                        imsave(f"{save_dir}/{slice_name}", slice_img)
+        else:
+            imsave(f'{save_dir}/{save_name}.{save_format}', img)
 
 
 
@@ -148,9 +184,12 @@ def check_dtype(arr: np.ndarray, max_val: Optional[int] = None):
     return best_dtype
 
 
-def reduce_dtype(arr: np.ndarray, max_val: Optional[int] = None):
-    # Get the lowest bit dtype for the array
-    best_dtype = check_dtype(arr, max_val)
+def reduce_dtype(arr: np.ndarray, max_val: Optional[int] = None, dtype: Optional[np.dtype] = None):
+    # If dtype is provided, use it directly
+    if dtype is not None:
+        best_dtype = dtype
+    else:
+        best_dtype = check_dtype(arr, max_val)
     # If the current dtype is already the best, return the array
     if arr.dtype == best_dtype:
         return arr
