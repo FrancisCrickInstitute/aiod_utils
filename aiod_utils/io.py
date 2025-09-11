@@ -106,6 +106,12 @@ def save_image(
     writer: Optional[Type[Writer]] = None, #for future implementation
     **kwargs,
 ):
+    """
+    Universal save image function numpy array or BioImage
+    - JPG/PNG formats only support 2D images or 2D + 3/4 channels. Extra dimensions are squeezed or sliced automatically.
+    - The `dtype` parameter converts the array before saving. jpg and png don't support all dtypes.
+    - Currently metadata isn't preserved (needs bioio reader implementation with ome.tiff)
+    """
     save_dir = Path(save_dir)
     assert Path(save_dir).exists(), f"path:{save_dir} doesn't exist"
     if not isinstance(img, np.ndarray):
@@ -114,10 +120,16 @@ def save_image(
         else:
             raise TypeError("Unsupported image type: Must be numpy array or have get_image_data() method")
     if dtype is not None:
-        img = reduce_dtype(img, dtype)
+        img = reduce_dtype(img, dtype=dtype)
     if save_format in ['jpg', 'jpeg', 'png']:
         img = resize_dim(img)
-        imsave(f'{save_dir}/{save_name}.{save_format}', img)
+        try:
+            imsave(f'{save_dir}/{save_name}.{save_format}', img)
+        except Exception as e:
+            raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
+    # elif save_format in ['ome.tiff', 'ome.zarr']:
+    #     bio_img = BioImage(img, metadata)
+    #     bio_img.save(f'{save_dir}/{save_name}.{save_format}')
     else:
         if save_multi:
             for t in range(img.shape[0]):
@@ -125,9 +137,15 @@ def save_image(
                     for z in range(img.shape[2]):
                         slice_img = img[t, c, z]
                         slice_name = f"{save_name}_T{t}C{c}Z{z}.{save_format}"
-                        imsave(f"{save_dir}/{slice_name}", slice_img)
+                        try:
+                            imsave(f"{save_dir}/{slice_name}", slice_img)
+                        except Exception as e:
+                            raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
         else:
-            imsave(f'{save_dir}/{save_name}.{save_format}', img)
+            try:
+                imsave(f'{save_dir}/{save_name}.{save_format}', img)
+            except Exception as e:
+                raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
 
 
 
