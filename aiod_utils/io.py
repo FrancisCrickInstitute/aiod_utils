@@ -6,6 +6,7 @@ from bioio import BioImage
 from bioio_base.reader import Reader
 from bioio_base.writer import Writer
 import numpy as np
+import dask.array as da
 from skimage.io import imread, imsave
 
 
@@ -100,10 +101,10 @@ def save_image(
     save_dir: Union[str, Path],
     save_name: str,
     save_format: str,
-    save_multi: Optional[bool] = False, #stack or single
+    save_multi: Optional[bool] = False, # Save each image separate or in 1 image
     dtype: Optional[np.dtype] = None,
     metadata: Optional[dict] = None,
-    writer: Optional[Type[Writer]] = None, #for future implementation
+    writer: Optional[Type[Writer]] = None, # for future implementation
     **kwargs,
 ):
     """
@@ -117,6 +118,8 @@ def save_image(
     if not isinstance(img, np.ndarray):
         if hasattr(img, "get_image_data"):
             img = img.get_image_data()
+        elif isinstance(img, da.Array):
+            img = img.compute() #skimage imsave doesn't support dask arrays
         else:
             raise TypeError("Unsupported image type: Must be numpy array or have get_image_data() method")
     if dtype is not None:
@@ -127,20 +130,23 @@ def save_image(
             imsave(f'{save_dir}/{save_name}.{save_format}', img)
         except Exception as e:
             raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
-    # elif save_format in ['ome.tiff', 'ome.zarr']:
-    #     bio_img = BioImage(img, metadata)
-    #     bio_img.save(f'{save_dir}/{save_name}.{save_format}')
+    # elif save_format in ['ome.tiff']:
+    #     bio_img = BioImage(img, metadata=metadata)
+    #     bio_img.save(f"{save_dir}/{save_name}.{save_format}")
     else:
         if save_multi:
-            for t in range(img.shape[0]):
-                for c in range(img.shape[1]):
-                    for z in range(img.shape[2]):
-                        slice_img = img[t, c, z]
-                        slice_name = f"{save_name}_T{t}C{c}Z{z}.{save_format}"
-                        try:
-                            imsave(f"{save_dir}/{slice_name}", slice_img)
-                        except Exception as e:
-                            raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
+            if len(img.shape) == 5: 
+                for t in range(img.shape[0]):
+                    for c in range(img.shape[1]):
+                        for z in range(img.shape[2]):
+                            slice_img = img[t, c, z]
+                            slice_name = f"{save_name}_T{t}C{c}Z{z}.{save_format}"
+                            try:
+                                imsave(f"{save_dir}/{slice_name}", slice_img)
+                            except Exception as e:
+                                raise IOError(f"Failed to save image '{slice_name}': {e}")
+            else:
+                raise ValueError(f"Cannot save image: unsupported shape {img.shape}. Expected 5D (T, C, Z, Y, X) for multi-slice saving.")
         else:
             try:
                 imsave(f'{save_dir}/{save_name}.{save_format}', img)
