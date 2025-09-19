@@ -103,7 +103,7 @@ def save_image(
     save_format: str,
     save_multi: Optional[bool] = False, # Save each image separate or in 1 image
     dtype: Optional[np.dtype] = None,
-    metadata: Optional[dict] = None,
+    metadata: Optional[dict] = None, # not supported with skimage imsave
     writer: Optional[Type[Writer]] = None, # for future implementation
     **kwargs,
 ):
@@ -127,10 +127,11 @@ def save_image(
     if save_format in ['jpg', 'jpeg', 'png']:
         img = resize_dim(img)
         try:
-            imsave(f'{save_dir}/{save_name}.{save_format}', img)
+            save_path = save_dir / f"{save_name}.{save_format}"
+            imsave(save_path, img)
         except Exception as e:
             raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
-    # elif save_format in ['ome.tiff']:
+    # elif save_format in ['ome.tiff', 'ome.tif']:
     #     bio_img = BioImage(img, metadata=metadata)
     #     bio_img.save(f"{save_dir}/{save_name}.{save_format}")
     else:
@@ -142,14 +143,16 @@ def save_image(
                             slice_img = img[t, c, z]
                             slice_name = f"{save_name}_T{t}C{c}Z{z}.{save_format}"
                             try:
-                                imsave(f"{save_dir}/{slice_name}", slice_img)
+                                save_path = save_dir / slice_name
+                                imsave(save_path, slice_img)
                             except Exception as e:
                                 raise IOError(f"Failed to save image '{slice_name}': {e}")
             else:
                 raise ValueError(f"Cannot save image: unsupported shape {img.shape}. Expected 5D (T, C, Z, Y, X) for multi-slice saving.")
         else:
             try:
-                imsave(f'{save_dir}/{save_name}.{save_format}', img)
+                save_path = save_dir / f"{save_name}.{save_format}"
+                imsave(save_path, img)
             except Exception as e:
                 raise IOError(f"Failed to save image '{save_name}.{save_format}': {e}")
 
@@ -220,4 +223,3 @@ def reduce_dtype(arr: np.ndarray, max_val: Optional[int] = None, dtype: Optional
     # Otherwise convert it
     else:
         return arr.astype(best_dtype, copy=False)
-
