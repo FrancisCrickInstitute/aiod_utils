@@ -1,10 +1,12 @@
+from collections import defaultdict
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Sequence, Union, Optional, Type
 import warnings
 
 from bioio import BioImage
 from bioio_base.reader import Reader
 import numpy as np
+import pandas as pd
 from skimage.io import imread
 
 
@@ -73,6 +75,55 @@ def load_image(
         return img.get_image_dask_data(dimension_order_out=dim_order)
     else:
         return img
+
+
+def image_paths_to_csv(
+    image_paths: Union[Sequence[Union[str, Path]], Union[Path, str]],
+    output_csv_path: Union[str, Path],
+    dimensions: Optional[Union[Sequence[dict[str, int]], dict[str, int]]] = None,
+    overwrite: bool = False,
+    **kwargs
+):
+    '''
+    Write image shape details to a csv file, given an input image path or list of paths.
+    Optionally provide shape details (per image path) to be written in the form of dimensions dict with keys from STCZYX:
+        dimensions = {
+            'X':...,
+            'Z':...,
+        }
+    If shape info are not provided or are incomplete, will attempt to read from the image metadata if available.
+    Will raise FileExistsError if overwrite=False and output_csv_path exists.
+    Any additional kwargs will be forwarded to pandas.DataFram.to_csv()
+    '''
+
+    if not overwrite and Path(output_csv_path).exists():
+        raise FileExistsError(f"Output csv file {output_csv_path} already exists and overwrite is set to False.")
+    
+    output = defaultdict(list)
+    
+    if isinstance(image_paths, (str, Path)):
+        image_paths = [image_paths]
+    if dimensions:
+        if isinstance(dimensions, dict):
+            dimensions = [dimensions]
+        if len(dimensions) != len(image_paths):
+            raise ValueError("If providing dimensions, must provide one dimensions dict per image path.")
+    else:
+        # Fetch dimensions for each image from metadata
+        raise NotImplementedError("Fetching dimensions from image metadata not yet implemented.")
+        
+    for path, shape in zip(image_paths, dimensions):
+        output["img_path"].append(str(path))
+        try:
+            output["num_slices"].append(shape['Z'])
+            output["height"].append(shape.get('Y') or shape['H']) # raises KeyError
+            output["width"].append(shape.get('X') or shape['W']) # raises KeyError
+            output["channels"].append(shape.get('C', 1))
+        except KeyError as e:
+            # NOTE: this message will give keyerror for H or W, without hinting to use Y and X instead
+            raise ValueError(f"Dimensions dict for image {path} is missing required key: {e}")
+    df = pd.DataFrame(output)
+    df.to_csv(output_csv_path, **kwargs)
 
 
 def extract_idxs_from_fname(
