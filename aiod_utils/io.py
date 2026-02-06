@@ -115,7 +115,7 @@ def image_paths_to_csv(
     for path, shape in zip(image_paths, dimensions):
         output["img_path"].append(str(path))
         try:
-            output["num_slices"].append(shape['Z'])
+            output["num_slices"].append(shape.get('Z', 1))
             output["height"].append(shape.get('Y') or shape['H']) # raises KeyError
             output["width"].append(shape.get('X') or shape['W']) # raises KeyError
             output["channels"].append(shape.get('C', 1))
