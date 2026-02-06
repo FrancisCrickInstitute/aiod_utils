@@ -37,7 +37,11 @@ def guess_rgba(img: BioImage):
 
 
 def load_image_data(
-    fpath: Union[str, Path], dim_order: str = "CZYX", as_dask: bool = True, **kwargs
+    image: Union[str, Path] | BioImage,
+    dim_order: str="CZYX",
+    as_dask: bool=True,
+    rgb_as_channels=True,
+    **kwargs,
 ) -> np.ndarray | da.Array:
     """
     Returns data array without any associated metadata.
@@ -45,19 +49,34 @@ def load_image_data(
         load_image(...,) => load_image(...,)
         load_image(..., return_array=True) => load_image_data(...)
         load_image(..., return_dask=True) => load_image_data(..., as_dask=True)
-    """
-    img = load_image(fpath, **kwargs)
+        
+    Inputs
+    ======
+    
+    image: file path or BioImage object
+        
+    Note
+    ====
+    
+    In Bioio, RGB images by default store the RGB dimension as in samples 'S', separate from channels 'C' (see bioio-devs/bioio#174). If `rgb_as_channels` is True, and if 'C' is requested in the output `dim_order`, the 'S' dimension will be remapped to 'C'.
+    """        
+    if isinstance(image, (str, Path)):
+        image = load_image(image, **kwargs)
     # Check the dim_order, and remap obvious aliases
     dim_order = dim_order.upper().translate(str.maketrans("DHW", "ZYX"))
-    #TODO: S -> C ("samples" means RGB(A) colour channel)
-    if "C" in dim_order and "S" not in dim_order and guess_rgba(img):
-        if getattr(img.dims, "C", 1) > 1:
+    if (
+        rgb_as_channels
+        and "C" in dim_order
+        and "S" not in dim_order
+        and guess_rgba(image)
+    ):
+        if getattr(image.dims, "C", 1) > 1:
             raise NotImplementedError("Multi-channel RGB(A) images not supported")
         dim_order = dim_order.replace("C", "S")
     return (
-        img.get_image_dask_data(dimension_order_out=dim_order)
+        image.get_image_dask_data(dimension_order_out=dim_order)
         if as_dask
-        else img.get_image_data(dimension_order_out=dim_order)
+        else image.get_image_data(dimension_order_out=dim_order)
     )
 
 
