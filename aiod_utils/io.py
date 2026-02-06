@@ -1,6 +1,6 @@
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Union, Optional, Type
 import warnings
 
 from bioio import BioImage
@@ -11,13 +11,13 @@ from skimage.io import imread
 
 
 def load_image(
-    fpath: Union[str, Path],
+    fpath: str | Path,
     return_array: bool = False,
     return_dask: bool = False,
     dim_order="CZYX",
     sense_check: bool = True,
     ensure_channel_lower_depth: bool = True,
-    reader: Optional[Type[Reader]] = None,
+    reader: type[Reader] | None = None,
 ) -> BioImage:
     assert Path(fpath).exists(), f"File {fpath} does not exist!"
     fpath = Path(fpath)
@@ -78,9 +78,9 @@ def load_image(
 
 
 def image_paths_to_csv(
-    image_paths: Union[Sequence[Union[str, Path]], Union[Path, str]],
-    output_csv_path: Union[str, Path],
-    dimensions: Optional[Union[Sequence[dict[str, int]], dict[str, int]]] = None,
+    image_paths: Sequence[str | Path] | str | Path,
+    output_csv_path: str | Path,
+    dimensions: Sequence[dict[str, int]] | dict[str, int] | None = None,
     overwrite: bool = False,
     **kwargs
 ):
@@ -127,7 +127,7 @@ def image_paths_to_csv(
 
 
 def extract_idxs_from_fname(
-    fname: str, downsample_factor: Optional[list[int, ...]] = None
+    fname: str, downsample_factor: Sequence[int] | None = None
 ):
     # Extract the indices from the filename
     idx_ranges = Path(fname).stem.split("_")[-3:]
@@ -163,7 +163,7 @@ def round_idxs(start: int, end: int, downsample_factor: int):
     return start, end
 
 
-def check_dtype(arr: np.ndarray, max_val: Optional[int] = None):
+def check_dtype(arr: np.ndarray, max_val: int | None = None):
     # Get the max value in the array if not provided
     if max_val is None:
         max_val = arr.max()
@@ -178,7 +178,7 @@ def check_dtype(arr: np.ndarray, max_val: Optional[int] = None):
     return best_dtype
 
 
-def reduce_dtype(arr: np.ndarray, max_val: Optional[int] = None):
+def reduce_dtype(arr: np.ndarray, max_val: int | None = None):
     # Get the lowest bit dtype for the array
     best_dtype = check_dtype(arr, max_val)
     # If the current dtype is already the best, return the array
