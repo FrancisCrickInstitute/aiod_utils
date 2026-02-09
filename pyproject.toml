@@ -34,7 +34,6 @@ dependencies = [
     "opencv-python",
     "scikit-image>0.20",
     "pyyaml",
-    "torch",
     "pandas<2.3.0"
 ]
 

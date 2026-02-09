@@ -4,7 +4,6 @@ from typing import Union, Optional, Any
 import warnings
 
 import numpy as np
-import torch
 
 from aiod_utils.io import reduce_dtype
 
@@ -12,27 +11,25 @@ EXTENSIONS = [".pkl", ".pickle", ".rle"]
 
 
 def encode(
-    mask: Union[np.ndarray, torch.Tensor],
+    mask: np.ndarray,
     mask_type: Optional[str] = None,
     metadata: dict[str, Any] = {},
 ) -> list[dict]:
     assert isinstance(
-        mask, (np.ndarray, torch.Tensor)
-    ), f"mask must be a numpy array or torch tensor, not {type(mask)}"
-    # Convert to torch tensor
-    if isinstance(mask, np.ndarray):
-        # Convert to lowest bit type
-        mask = torch.from_numpy(reduce_dtype(mask))
+        mask, np.ndarray
+    ), f"mask must be a numpy array, not {type(mask)}"
+    # Convert to lowest bit type
+    mask = reduce_dtype(mask)
     # Try to infer the mask type if not provided
     if mask_type is None:
         mask_type = check_mask_type(mask)
         warnings.warn(f"Mask type not provided, inferring as {mask_type}")
     # Give a batch dimension if it's not there
     if mask.ndim == 2:
-        mask = mask.unsqueeze(0)
+        mask = np.expand_dims(mask, axis=0)
     elif mask.ndim >= 4:
         # First try squeezing in case of pointless dims
-        mask = mask.squeeze()
+        mask = np.squeeze(mask)
         # Raise an error if more than 3D, as we will struggle to guess H & W (& depth)
         if mask.ndim >= 4:
             raise ValueError(
@@ -40,22 +37,22 @@ def encode(
             )
     if mask_type == "binary":
         # Ensure mask is boolean (rather than 2 unique values, it's faster)
-        mask = mask.bool()
+        mask = mask.astype(bool)
         res = _encode_binary(mask, **metadata)
     elif mask_type == "instance":
-        mask = mask.long()
+        mask = mask.astype(np.int64)
         res = _encode_instance(mask, **metadata)
     # Insert metadata
     res.append({"metadata": metadata})
     return res
 
 
-def check_mask_type(mask: torch.Tensor) -> str:
+def check_mask_type(mask: np.ndarray) -> str:
     # Boolean masks are binary
-    if mask.dtype == torch.bool:
+    if mask.dtype == bool:
         mask_type = "binary"
     # Masks with only 2 unique values are binary
-    elif mask.unique().shape[0] <= 2:
+    elif np.unique(mask).shape[0] <= 2:
         mask_type = "binary"
     # Otherwise, it's an instance mask
     else:
@@ -69,13 +66,13 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     # For binarised instance segmentation, each batch element is a single instance
     # Otherwise each batch element is a slice
     b, h, w = mask.shape
-    mask = mask.permute(0, 2, 1).flatten(1)
+    mask = mask.transpose(0, 2, 1).reshape(b, -1)
 
     # Compute change indices
     # Essentially, XOR the mask with itself shifted by 1, identifying contiguous regions
     diff = mask[:, 1:] ^ mask[:, :-1]
     # Then find all the indices where we have a change
-    change_indices = diff.nonzero()
+    change_indices = np.argwhere(diff)
 
     # Additional metadata
     metadata = {}
@@ -84,19 +81,19 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     out = []
     for i in range(b):
         cur_idxs = change_indices[change_indices[:, 0] == i, 1]
-        cur_idxs = torch.cat(
+        cur_idxs = np.concatenate(
             [
-                torch.tensor([0], dtype=cur_idxs.dtype, device=cur_idxs.device),
+                np.array([0], dtype=cur_idxs.dtype),
                 cur_idxs + 1,
-                torch.tensor([h * w], dtype=cur_idxs.dtype, device=cur_idxs.device),
+                np.array([h * w], dtype=cur_idxs.dtype),
             ]
         )
         # Calculate the run length
         btw_idxs = cur_idxs[1:] - cur_idxs[:-1]
         # Start empty if first pixel is background, otherwise start with 0
         counts = [] if mask[i, 0] == 0 else [0]
-        # Detach tensor for easier saving
-        counts.extend(btw_idxs.detach().cpu().tolist())
+        # Convert to list for easier saving
+        counts.extend(btw_idxs.tolist())
         # Store the size and RLE/counts and any additional metadata
         if "idx" in kwargs:
             metadata = {"idx": int(kwargs["idx"][i])}
@@ -104,7 +101,8 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     return out
 
 
-def _encode_instance(mask: torch.Tensor, **kwargs) -> list[dict]:
+# @line_profiler.profile
+def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
     """
     Note that this is much slower than the binary encoding.
     This needs to be used for models like SAM, where instance masks overlap.
@@ -117,16 +115,16 @@ def _encode_instance(mask: torch.Tensor, **kwargs) -> list[dict]:
         # Get the mask for this slice
         mask_slice = mask[idx]
         # Get the unique instances
-        instances = torch.unique(mask_slice)
+        instances = np.unique(mask_slice)
         # Remove the background
         instances = instances[instances != 0]
         # Handle the case where there are no instances
         if len(instances) == 0:
-            mask_batch = torch.zeros_like(mask_slice, dtype=torch.bool).unsqueeze(0)
-            instances = torch.tensor([0], dtype=torch.uint8)
+            mask_batch = np.zeros_like(mask_slice, dtype=bool)[np.newaxis, ...]
+            instances = np.array([0], dtype=np.uint8)
         else:
             # Convert into a batch of binarised masks for each instance
-            mask_batch = mask_slice.unsqueeze(0) == instances.unique().view(-1, 1, 1)
+            mask_batch = mask_slice[np.newaxis, ...] == np.unique(instances)[:, np.newaxis, np.newaxis]
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
         encoded_masks = _encode_binary(mask_batch, idx=instances, **kwargs)
