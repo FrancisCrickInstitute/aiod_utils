@@ -5,74 +5,91 @@ import warnings
 from bioio import BioImage
 from bioio_base.reader import Reader
 import numpy as np
-from skimage.io import imread
+import dask.array as da
+
+
+def _guess_reader(fpath: Union[str, Path]) -> Reader | None:
+    ext = Path(fpath).suffix.lower()
+    try:
+        if ext in [".ome.tiff"]:
+            from bioio_ome_tiff import Reader as OMETiffReader
+            return OMETiffReader
+        elif ext in [".tif", ".tiff"]:
+            from bioio_tifffile import Reader as TiffReader
+            return TiffReader
+        elif ext in [".zarr"]:
+            from bioio_ome_zarr import Reader as ZarrReader
+            return ZarrReader
+        elif ext in [".jpg", ".jpeg", ".png"]:
+            from bioio_imageio import Reader as ImageIOReader
+            return ImageIOReader
+        elif ext in [".nd2"]:
+            from bioio_nd2 import Reader as ND2Reader
+            return ND2Reader
+    except ModuleNotFoundError as e:
+        warnings.warn(
+            f"Recommended reader plugin {e.name} for file type {ext} not installed"
+        )
+    return None
+
+
+def guess_rgba(img: BioImage):
+    # https://github.com/bioio-devs/bioio/issues/174#issuecomment-3843003521
+    return 'S' in img.dims.order
+
+
+def load_image_data(
+    image: Union[str, Path] | BioImage,
+    dim_order: str="CZYX",
+    as_dask: bool=False,
+    rgb_as_channels=True,
+    **kwargs,
+) -> np.ndarray | da.Array:
+    """
+    Returns data array without any associated metadata.
+    Replaces legacy flagged mode of load_image:
+        load_image(...,) => load_image(...,)
+        load_image(..., return_array=True) => load_image_data(...)
+        load_image(..., return_dask=True) => load_image_data(..., as_dask=True)
+        
+    Inputs
+    ======
+    
+    image: file path or BioImage object
+        
+    Note
+    ====
+    
+    In Bioio, RGB images by default store the RGB dimension as in samples 'S', separate from channels 'C' (see bioio-devs/bioio#174). If `rgb_as_channels` is True, and if 'C' is requested in the output `dim_order`, the 'S' dimension will be remapped to 'C'.
+    """        
+    if isinstance(image, (str, Path)):
+        image = load_image(image, **kwargs)
+    # Check the dim_order, and remap obvious aliases
+    dim_order = dim_order.upper().translate(str.maketrans("DHW", "ZYX"))
+    if (
+        rgb_as_channels
+        and "C" in dim_order
+        and "S" not in dim_order
+        and guess_rgba(image)
+    ):
+        if getattr(image.dims, "C", 1) > 1:
+            raise NotImplementedError("Multi-channel RGB(A) images not supported")
+        dim_order = dim_order.replace("C", "S")
+    return (
+        image.get_image_dask_data(dimension_order_out=dim_order)
+        if as_dask
+        else image.get_image_data(dimension_order_out=dim_order)
+    )
 
 
 def load_image(
     fpath: Union[str, Path],
-    return_array: bool = False,
-    return_dask: bool = False,
-    dim_order="CZYX",
-    sense_check: bool = True,
-    ensure_channel_lower_depth: bool = True,
     reader: Optional[Type[Reader]] = None,
 ) -> BioImage:
-    assert Path(fpath).exists(), f"File {fpath} does not exist!"
-    fpath = Path(fpath)
-    # If returning actual data, we need to know the dimension order
-    if dim_order is None and any([return_array, return_dask]):
-        raise ValueError(
-            "If you want to return an array or a dask array, you must specify the dimension order!"
-        )
-    # You cannot return both an array and a dask array
-    if return_array and return_dask:
-        raise ValueError("You cannot return both an array and a dask array!")
-    # Check the dim_order, and remap obvious aliases
-    dim_order = dim_order.upper()
-    dim_order = dim_order.translate(str.maketrans("DHW", "ZYX"))
-    # NOTE: Had some issues with jpg/png, so use skimage for those
-    if fpath.suffix in [".jpg", ".jpeg", ".png"]:
-        warnings.warn(
-            f"Using skimage (not bioio) to load {fpath.name} due to issues with bioio and jpg/png. All bioio arguments are ignored."
-        )
-        return imread(fpath)
     # Load the image with the requested reader
-    # Default reader is None, and bioio determines which to use (most recently installed for that extension)
-    img = BioImage(fpath, reader=reader)
-    # Do some basic checks to flag potential issues
-    if sense_check:
-        if img.dims.Z > 1:
-            if img.dims.C > img.dims.Z:
-                # Manually swap the channel and depth dims, for whatever order is given, if requested
-                if ensure_channel_lower_depth:
-                    dim_order = dim_order.translate(str.maketrans("CZ", "ZC"))
-                    # This has no effect if not returning an array
-                    # TODO: Look into manipulating BioIO dims to force change when loading data later
-                    if not any([return_array, return_dask]):
-                        warnings.warn(
-                            "If ensure_channel_lower_depth=True, you should also return an array or a dask array otherwise nothing changes!"
-                        )
-                else:
-                    warnings.warn(
-                        f"Image {fpath.name} has more channels ({img.dims.C}) than slices ({img.dims.Z})! Is that right? Can be fixed with ensure_channel_lower_depth=True."
-                    )
-            if img.dims.Y < img.dims.Z:
-                warnings.warn(
-                    f"Image {fpath.name} has more slices ({img.dims.Z}) than height ({img.dims.Y})! Is that right?"
-                )
-            if img.dims.X < img.dims.Z:
-                warnings.warn(
-                    f"Image {fpath.name} has more slices ({img.dims.Z}) than width ({img.dims.X})! Is that right?"
-                )
-    # Return in the desired format
-    # NOTE: Could add idxs here, but as they load into memory there's no advantage
-    # So we leave that for Segment-Flow to do as it's almost exclusively done there
-    if return_array:
-        return img.get_image_data(dimension_order_out=dim_order)
-    elif return_dask:
-        return img.get_image_dask_data(dimension_order_out=dim_order)
-    else:
-        return img
+    # If no reader provided, guess an appropriate plugin or fall back on bioio default plugin order
+    fpath = Path(fpath)
+    return BioImage(fpath, reader=reader or _guess_reader(fpath))
 
 
 def extract_idxs_from_fname(
