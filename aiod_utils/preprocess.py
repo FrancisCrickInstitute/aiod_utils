@@ -8,7 +8,7 @@ import warnings
 from cv2 import createCLAHE
 import numpy as np
 from skimage.measure import block_reduce
-import skimage.io
+import skimage
 import yaml
 
 
