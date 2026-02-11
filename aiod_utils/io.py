@@ -8,11 +8,13 @@ import numpy as np
 import dask.array as da
 
 
-def _guess_reader(fpath: Union[str, Path]):
+def _guess_reader(fpath: Union[str, Path]) -> Reader | None:
     ext = Path(fpath).suffix.lower()
     try:
-        if ext in [".tif", ".tiff"]:
-            # TODO: add explicit .ome.tiff support
+        if ext in [".ome.tiff"]:
+            from bioio_ome_tiff import Reader as OMETiffReader
+            return OMETiffReader
+        elif ext in [".tif", ".tiff"]:
             from bioio_tifffile import Reader as TiffReader
             return TiffReader
         elif ext in [".zarr"]:
@@ -39,7 +41,7 @@ def guess_rgba(img: BioImage):
 def load_image_data(
     image: Union[str, Path] | BioImage,
     dim_order: str="CZYX",
-    as_dask: bool=True,
+    as_dask: bool=False,
     rgb_as_channels=True,
     **kwargs,
 ) -> np.ndarray | da.Array:
