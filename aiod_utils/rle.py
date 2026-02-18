@@ -13,11 +13,13 @@ EXTENSIONS = [".pkl", ".pickle", ".rle"]
 def encode(
     mask: np.ndarray,
     mask_type: Optional[str] = None,
-    metadata: dict[str, Any] = {},
+    metadata: Optional[dict[str, Any]] = None,
 ) -> list[dict]:
     assert isinstance(
         mask, np.ndarray
     ), f"mask must be a numpy array, not {type(mask)}"
+    if metadata is None:
+        metadata = {}
     # Convert to lowest bit type
     mask = reduce_dtype(mask)
     # Try to infer the mask type if not provided
