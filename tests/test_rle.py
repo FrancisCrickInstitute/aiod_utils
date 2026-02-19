@@ -143,6 +143,145 @@ def test_instance_to_binary_conversion(mask, mask_type, request):
     assert np.array_equal(binary_mask.astype(bool), decoded_binary_mask)
 
 
+# ---- Metadata handling tests ----
+
+@pytest.mark.parametrize(
+    "mask, mask_type",
+    [
+        ("binary_2d_mask", "binary"),
+        ("binary_3d_mask", "binary"),
+        ("instance_2d_mask", "instance"),
+        ("instance_3d_mask", "instance"),
+    ],
+)
+def test_metadata_preserved(mask, mask_type, request):
+    """User-supplied metadata must survive an encode → decode round-trip."""
+    mask = request.getfixturevalue(mask)
+    from aiod_utils.rle import encode, decode
+
+    user_meta = {"source": "test_scan", "resolution_mm": 0.5, "labels": [1, 2, 3]}
+    rle = encode(mask, mask_type=mask_type, metadata=user_meta)
+    _, returned_meta = decode(rle, mask_type=mask_type)
+
+    # decode returns {"metadata": <user_meta>}
+    assert "metadata" in returned_meta
+    assert returned_meta["metadata"] == user_meta
+
+
+@pytest.mark.parametrize(
+    "mask, mask_type",
+    [
+        ("binary_2d_mask", "binary"),
+        ("binary_3d_mask", "binary"),
+        ("instance_2d_mask", "instance"),
+        ("instance_3d_mask", "instance"),
+    ],
+)
+def test_empty_metadata_preserved(mask, mask_type, request):
+    """Encoding with no explicit metadata should return an empty metadata dict."""
+    mask = request.getfixturevalue(mask)
+    from aiod_utils.rle import encode, decode
+
+    rle = encode(mask, mask_type=mask_type)
+    _, returned_meta = decode(rle, mask_type=mask_type)
+
+    assert "metadata" in returned_meta
+    assert returned_meta["metadata"] == {}
+
+
+@pytest.mark.parametrize(
+    "mask, mask_type",
+    [
+        ("binary_2d_mask", "binary"),
+        ("binary_3d_mask", "binary"),
+        ("instance_2d_mask", "instance"),
+        ("instance_3d_mask", "instance"),
+    ],
+)
+def test_metadata_does_not_corrupt_mask(mask, mask_type, request):
+    """Providing user metadata must not alter the decoded mask data."""
+    mask = request.getfixturevalue(mask)
+    from aiod_utils.rle import encode, decode
+
+    user_meta = {"info": "extra", "value": 42}
+    rle_with_meta = encode(mask, mask_type=mask_type, metadata=user_meta)
+    rle_without_meta = encode(mask, mask_type=mask_type)
+
+    decoded_with, _ = decode(rle_with_meta, mask_type=mask_type)
+    decoded_without, _ = decode(rle_without_meta, mask_type=mask_type)
+
+    assert np.array_equal(decoded_with, decoded_without)
+
+
+@pytest.mark.parametrize(
+    "mask, mask_type",
+    [
+        ("binary_2d_mask", "binary"),
+        ("binary_3d_mask", "binary"),
+        ("instance_2d_mask", "instance"),
+        ("instance_3d_mask", "instance"),
+    ],
+)
+def test_metadata_not_leaked_into_rle_slices(mask, mask_type, request):
+    """User metadata must only appear in the trailing sentinel dict, not in
+    any per-slice RLE entry, to avoid polluting the counts/size entries."""
+    mask = request.getfixturevalue(mask)
+    from aiod_utils.rle import encode
+
+    user_meta = {"source": "leak_check"}
+    rle = encode(mask, mask_type=mask_type, metadata=user_meta)
+
+    # The last entry is always {"metadata": ...}; everything before it is
+    # slice data and must not contain 'metadata' as a top-level key.
+    payload = rle[:-1]
+
+    def _has_metadata_key(entry):
+        """Recursively check that no dict in entry has a 'metadata' key."""
+        if isinstance(entry, dict):
+            return "metadata" in entry
+        if isinstance(entry, list):
+            return any(_has_metadata_key(e) for e in entry)
+        return False
+
+    for entry in payload:
+        assert not _has_metadata_key(entry), (
+            f"Found 'metadata' key in payload slice: {entry}"
+        )
+
+
+def test_metadata_preserved_through_instance_to_binary():
+    """instance_to_binary must carry user metadata from the instance RLE
+    into the newly-created binary RLE."""
+    from aiod_utils.rle import encode, decode, instance_to_binary
+
+    instance_mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
+    user_meta = {"patient_id": "P001", "modality": "CT"}
+
+    rle_instance = encode(instance_mask, mask_type="instance", metadata=user_meta)
+    rle_binary = instance_to_binary(rle_instance)
+    _, returned_meta = decode(rle_binary, mask_type="binary")
+
+    assert returned_meta["metadata"] == user_meta
+
+
+def test_metadata_key_collision_with_idx():
+    """If a user passes 'idx' inside metadata it must not silently corrupt the
+    instance encoding (the internal 'idx' usage in _encode_binary takes a
+    numpy array of instance labels, whereas user 'idx' is arbitrary).
+    Encoding and decoding must still produce a correct mask."""
+    from aiod_utils.rle import encode, decode
+
+    instance_mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
+    # 'idx' is also used internally; passing it here should not silently break things.
+    user_meta = {"idx": "custom_value"}
+
+    rle = encode(instance_mask, mask_type="instance", metadata=user_meta)
+    decoded_mask, returned_meta = decode(rle, mask_type="instance")
+
+    assert np.array_equal(instance_mask, decoded_mask.astype(instance_mask.dtype))
+    assert returned_meta["metadata"] == user_meta
+
+
 # What other tests should we add?
 def test_rle_4d_mask():
     from aiod_utils.rle import encode, decode
