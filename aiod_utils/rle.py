@@ -40,7 +40,7 @@ def encode(
     if mask_type == "binary":
         # Ensure mask is boolean (rather than 2 unique values, it's faster)
         mask = mask.astype(bool)
-        res = _encode_binary(mask, **metadata)
+        res = _encode_binary(mask)
     elif mask_type == "instance":
         mask = mask.astype(np.int64)
         res = _encode_instance(mask, **metadata)
@@ -131,7 +131,7 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
             mask_batch = mask_slice[np.newaxis, ...] == np.unique(instances)[:, np.newaxis, np.newaxis]
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
-        encoded_masks = _encode_binary(mask_batch, idx=instances, **kwargs)
+        encoded_masks = _encode_binary(mask_batch, idx=instances)
         # Store the encoded masks
         out.append(encoded_masks)
     return out
