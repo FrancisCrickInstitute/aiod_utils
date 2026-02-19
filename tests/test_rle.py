@@ -178,7 +178,7 @@ def test_metadata_preserved(mask, mask_type, request):
     ],
 )
 def test_empty_metadata_preserved(mask, mask_type, request):
-    """Encoding with no explicit metadata should return an empty metadata dict."""
+    """Encoding with no explicit metadata should only contain the auto-inserted mask_type."""
     mask = request.getfixturevalue(mask)
     from aiod_utils.rle import encode, decode
 
@@ -186,7 +186,7 @@ def test_empty_metadata_preserved(mask, mask_type, request):
     _, returned_meta = decode(rle, mask_type=mask_type)
 
     assert "metadata" in returned_meta
-    assert returned_meta["metadata"] == {}
+    assert returned_meta["metadata"] == {"mask_type": mask_type}
 
 
 @pytest.mark.parametrize(

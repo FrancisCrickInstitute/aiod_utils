@@ -13,11 +13,13 @@ EXTENSIONS = [".pkl", ".pickle", ".rle"]
 def encode(
     mask: np.ndarray,
     mask_type: Optional[str] = None,
-    metadata: dict[str, Any] = {},
+    metadata: Optional[dict[str, Any]] = None,
 ) -> list[dict]:
     assert isinstance(
         mask, np.ndarray
     ), f"mask must be a numpy array, not {type(mask)}"
+    if metadata is None:
+        metadata = {}
     # Convert to lowest bit type
     mask = reduce_dtype(mask)
     # Try to infer the mask type if not provided
@@ -41,7 +43,9 @@ def encode(
         res = _encode_binary(mask)
     elif mask_type == "instance":
         mask = mask.astype(np.int64)
-        res = _encode_instance(mask)
+        res = _encode_instance(mask, **metadata)
+    # Store mask_type in metadata for self-documentation
+    metadata["mask_type"] = mask_type
     # Insert metadata
     res.append({"metadata": metadata})
     return res
@@ -134,18 +138,23 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
 
 
 def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray, dict]:
-    # Try to infer the mask type if not provided
+    metadata = rle[-1]
+    encoding = rle[:-1]
+
+    # Try to get mask_type from metadata first, then parameter, then infer
     if mask_type is None:
-        mask_type = check_rle_type(rle)
-        warnings.warn(f"Mask type not provided, inferring as {mask_type}")
+        if "mask_type" in metadata.get("metadata", {}):
+            mask_type = metadata["metadata"]["mask_type"]
+        else:
+            # Fall back to structure-based inference
+            mask_type = check_rle_type(encoding)
+            warnings.warn(f"Mask type not found in metadata, inferring as {mask_type}")
     # TODO: Some basic checks for rle key validity
-    # Pop out the metadata
-    metadata = rle.pop()
     if mask_type == "binary":
-        res = _decode_binary(rle)
+        res = _decode_binary(encoding)
     elif mask_type == "instance":
         # TODO: Some additional checks for keys for instance masks?
-        res = _decode_instance(rle)
+        res = _decode_instance(encoding)
     # NOTE: We squeeze here as any 2D inputs are unsqueezed to 3D for simplicity when encoding
     return res.squeeze(), metadata
 
