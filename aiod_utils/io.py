@@ -9,15 +9,15 @@ import dask.array as da
 
 
 def _guess_reader(fpath: Union[str, Path]) -> Reader | None:
-    ext = Path(fpath).suffix.lower()
+    ext = ''.join(Path(fpath).suffixes).lower()
     try:
-        if ext in [".ome.tiff"]:
+        if ext in [".ome.tiff", ".ome.tiff"]:
             from bioio_ome_tiff import Reader as OMETiffReader
             return OMETiffReader
         elif ext in [".tif", ".tiff"]:
             from bioio_tifffile import Reader as TiffReader
             return TiffReader
-        elif ext in [".zarr"]:
+        elif ext in [".zarr", ".ome.zarr"]:
             from bioio_ome_zarr import Reader as ZarrReader
             return ZarrReader
         elif ext in [".jpg", ".jpeg", ".png"]:
