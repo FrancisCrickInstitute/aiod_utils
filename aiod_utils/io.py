@@ -6,8 +6,9 @@ import warnings
 
 from bioio import BioImage
 from bioio_base.reader import Reader
-import numpy as np
 import dask.array as da
+import numpy as np
+import pandas as pd
 
 
 def _guess_reader(fpath: Union[str, Path]) -> Reader | None:

@@ -122,7 +122,7 @@ class Downsample(Preprocess):
             input_shape = img.shape
         if len(self.kwarg_params["block_size"]) != len(input_shape):
             raise ValueError(
-                f"Block size ({self.kwarg_params['block_size']}) must have the same length as the image shape ({img_shape})"
+                f"Block size ({self.kwarg_params['block_size']}) must have the same length as the image shape ({input_shape})"
             )
         return img
 

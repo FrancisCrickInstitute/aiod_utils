@@ -284,7 +284,7 @@ def test_metadata_key_collision_with_idx():
 
 # What other tests should we add?
 def test_rle_4d_mask():
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import encode
 
     # Create a random 4D binary mask
     mask = np.random.randint(0, 2, (2, 3, 3, 3), dtype=np.uint8)
