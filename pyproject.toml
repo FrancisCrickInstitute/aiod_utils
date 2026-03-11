@@ -8,7 +8,11 @@ version = "0.0.1"
 description = "Utilities for AI OnDemand"
 readme = "README.md"
 authors = [
-    {name = "Cameron Shand"}
+    {name = "Cameron Shand", email = "cameron.shand@crick.ac.uk"},
+    {name = "Fiona Young", email = "fiona.young@crick.ac.uk"},
+    {name = "Numan Ahmed", email = "numan.ahmed@crick.ac.uk"},
+    {name = "Qin Yu", email = "qin.yu@crick.ac.uk"},
+    {name = "Jon Smith", email = "jon.smith@crick.ac.uk"}
 ]
 requires-python = ">=3.11"
 classifiers = [
@@ -34,7 +38,6 @@ dependencies = [
     "opencv-python",
     "scikit-image>0.20",
     "pyyaml",
-    "torch",
     "pandas<2.3.0"
 ]
 
