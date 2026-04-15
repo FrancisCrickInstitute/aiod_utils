@@ -24,7 +24,7 @@ HEADROOM_FACTOR = 0.75
 
 
 def compute_max_substack_size(
-    memory_bytes: int, dtype: str, n_channels: int, image_shape: Stack
+    memory_bytes: int, dtype: str, image_shape: Stack
 ) -> Stack:
     """
     Compute the maximum substack size (in pixels) given available memory,
@@ -39,7 +39,7 @@ def compute_max_substack_size(
 
     usable = memory_bytes * HEADROOM_FACTOR
     # TODO worry about bitdepth? RGB channels maybe a special case, check consistency with the whole "S is C" business ... 0.0
-    bytes_per_voxel = np_dtype(dtype).itemsize * n_channels
+    bytes_per_voxel = np_dtype(dtype).itemsize * image_shape.channels
     max_voxels = usable / bytes_per_voxel
     total_voxels = image_shape.height * image_shape.width * image_shape.depth
     if total_voxels <= 0:
@@ -54,16 +54,11 @@ def compute_max_substack_size(
     scale = (max_voxels / total_voxels) ** (1 / 3)
     if scale >= 1.0:
         # Whole image fits in one substack
-        return Stack(
-            height=image_shape.height,
-            width=image_shape.width,
-            depth=image_shape.depth,
-            channels=n_channels,
-        )
+        return image_shape
     h = max(1, floor(image_shape.height * scale))
     w = max(1, floor(image_shape.width * scale))
     d = max(1, floor(image_shape.depth * scale))
-    return Stack(height=h, width=w, depth=d, channels=n_channels)
+    return Stack(height=h, width=w, depth=d, channels=image_shape.channels)
 
 
 def auto_size(size: int, max_size: Union[int, float]) -> int:
@@ -82,7 +77,7 @@ def auto_size(size: int, max_size: Union[int, float]) -> int:
 
 def calc_num_stacks_dim(
     dim_size: int,
-    req_stacks_dim: int,
+    req_stacks_dim: int | str,
     overlap: float,
     dim: str,
     max_substack_size: Stack = MAX_SUBSTACK_SIZE,
