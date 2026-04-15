@@ -44,6 +44,13 @@ def compute_max_substack_size(
     total_voxels = image_shape.height * image_shape.width * image_shape.depth
     if total_voxels <= 0:
         return MAX_SUBSTACK_SIZE
+    if max_voxels < 1:
+        raise ValueError(
+            f"Memory budget too small: {memory_bytes} bytes with dtype={dtype} and "
+            f"n_channels={image_shape.channels} gives {max_voxels:.2f} usable voxels after "
+            f"applying HEADROOM_FACTOR={HEADROOM_FACTOR}. Cannot allocate even a "
+            f"single voxel. Check params.memory_per_job in your Nextflow profile."
+        )
     scale = (max_voxels / total_voxels) ** (1 / 3)
     if scale >= 1.0:
         # Whole image fits in one substack
