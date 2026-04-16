@@ -3,7 +3,6 @@ from numpy import dtype as np_dtype
 
 from aiod_utils.stacks import (
     HEADROOM_FACTOR,
-    MAX_SUBSTACK_SIZE,
     Stack,
     auto_size,
     calc_num_stacks,
