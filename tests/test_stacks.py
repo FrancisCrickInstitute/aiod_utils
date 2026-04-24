@@ -164,13 +164,15 @@ def test_more_memory_fewer_substacks():
     overlap = Stack(0.0, 0.0, 0.0, 0.0)
 
     prev_total = None
+    prev_memory_gb = None
     for memory_gb in [1, 4, 16, 64]:
         cap = compute_max_substack_size(memory_gb * GiB, "float32", img)
         num, _ = calc_num_stacks(img, req, overlap, cap)
         total = num.height * num.width * num.depth
         if prev_total is not None:
             assert total <= prev_total, (
-                f"Doubling memory should not increase substack count "
-                f"(was {prev_total} at {memory_gb//2}GB, got {total} at {memory_gb}GB)"
+                f"Increasing memory should not increase substack count "
+                f"(was {prev_total} at {prev_memory_gb}GB, got {total} at {memory_gb}GB)"
             )
         prev_total = total
+        prev_memory_gb = memory_gb
