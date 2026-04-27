@@ -147,8 +147,10 @@ def image_paths_to_csv(
         except KeyError as e:
             # NOTE: this message will give keyerror for H or W, without hinting to use Y and X instead
             raise ValueError(f"Dimensions dict for image {path} is missing required key: {e}")
-        if dt:
+        if dt is not None:
             output["dtype"].append(np.dtype(dt).name)
+        else:
+            output["dtype"].append(None)
     df = pd.DataFrame(output)
     df.to_csv(output_csv_path, **kwargs)
 

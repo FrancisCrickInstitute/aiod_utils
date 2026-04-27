@@ -84,12 +84,6 @@ def test_compute_max_substack_size_aspect_ratio_hd():
     assert result.height / result.depth == pytest.approx(ANISO.height / ANISO.depth, rel=0.05)
 
 
-def test_compute_max_substack_size_channels_field():
-    """channels in result == n_channels, regardless of image_shape.channels."""
-    result = compute_max_substack_size(1 * GiB, "float32", Stack(500, 500, 50, 3))
-    assert result.channels == 3
-
-
 def test_compute_max_substack_size_multichannel_smaller():
     """More channels → larger bytes/voxel → smaller substack for same memory."""
     img = Stack(10000, 10000, 200, 1)

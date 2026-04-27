@@ -34,12 +34,14 @@ def compute_max_substack_size(
     than being wasted when one dimension (e.g. depth) is much smaller than the
     cubic root of the voxel budget.
 
-    Falls back to MAX_SUBSTACK_SIZE if memory is insufficient or image_shape is missing.
+    Returns MAX_SUBSTACK_SIZE when image_shape has a non-positive total voxel
+    count. Raises ValueError if the memory budget is too small to allocate even
+    a single voxel after applying HEADROOM_FACTOR.
     """
 
     usable = memory_bytes * HEADROOM_FACTOR
     # TODO worry about bitdepth? RGB channels maybe a special case, check consistency with the whole "S is C" business ... 0.0
-    bytes_per_voxel = np_dtype(dtype).itemsize * image_shape.channels
+    bytes_per_voxel = np_dtype(dtype).itemsize * image_shape.channels if image_shape.channels is not None else 1
     max_voxels = usable / bytes_per_voxel
     total_voxels = image_shape.height * image_shape.width * image_shape.depth
     if total_voxels <= 0:
