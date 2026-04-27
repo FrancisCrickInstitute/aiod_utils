@@ -41,7 +41,7 @@ def compute_max_substack_size(
 
     usable = memory_bytes * HEADROOM_FACTOR
     # TODO worry about bitdepth? RGB channels maybe a special case, check consistency with the whole "S is C" business ... 0.0
-    bytes_per_voxel = np_dtype(dtype).itemsize * image_shape.channels if image_shape.channels is not None else 1
+    bytes_per_voxel = np_dtype(dtype).itemsize * (image_shape.channels or 1)
     max_voxels = usable / bytes_per_voxel
     total_voxels = image_shape.height * image_shape.width * image_shape.depth
     if total_voxels <= 0:
