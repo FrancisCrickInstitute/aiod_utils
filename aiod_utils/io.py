@@ -1,4 +1,5 @@
 from collections import defaultdict
+from itertools import repeat
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Union, Optional, Type
@@ -99,6 +100,7 @@ def image_paths_to_csv(
     image_paths: Sequence[str | Path] | str | Path,
     output_csv_path: str | Path,
     dimensions: Sequence[dict[str, int]] | dict[str, int] | None = None,
+    dtypes: Sequence[str | np.dtype] | str | np.dtype | None = None,
     overwrite: bool = False,
     **kwargs
 ):
@@ -128,9 +130,14 @@ def image_paths_to_csv(
             raise ValueError("If providing dimensions, must provide one dimensions dict per image path.")
     else:
         # Fetch dimensions for each image from metadata
+        # TODO: When this is implemented, might as well enable fetching dtype while we're at it
         raise NotImplementedError("Fetching dimensions from image metadata not yet implemented.")
-        
-    for path, shape in zip(image_paths, dimensions):
+    if dtypes is not None:
+        if isinstance(dtypes, (str, np.dtype)):
+            dtypes = [dtypes]
+        if len(dtypes) != len(image_paths):
+            raise ValueError("If providing dtypes, must provide one dtype per image path.")
+    for path, shape, dt in zip(image_paths, dimensions, dtypes or repeat(None)):
         output["img_path"].append(str(path))
         try:
             output["num_slices"].append(shape.get('Z', 1))
@@ -140,6 +147,10 @@ def image_paths_to_csv(
         except KeyError as e:
             # NOTE: this message will give keyerror for H or W, without hinting to use Y and X instead
             raise ValueError(f"Dimensions dict for image {path} is missing required key: {e}")
+        if dt is not None:
+            output["dtype"].append(np.dtype(dt).name)
+        else:
+            output["dtype"].append(None)
     df = pd.DataFrame(output)
     df.to_csv(output_csv_path, **kwargs)
 
