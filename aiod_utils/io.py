@@ -93,6 +93,8 @@ def load_image(
     # Load the image with the requested reader
     # If no reader provided, guess an appropriate plugin or fall back on bioio default plugin order
     fpath = Path(fpath)
+    if not fpath.exists():
+        raise FileNotFoundError(f"File {fpath} does not exist.")
     return BioImage(fpath, reader=reader or _guess_reader(fpath))
 
 
