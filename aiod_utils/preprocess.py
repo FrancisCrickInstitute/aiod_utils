@@ -185,12 +185,12 @@ class CLAHE(Preprocess):
     params: dict = {
         "tileGridSize": {
             "name": "Tile/Block size",
-            "default": (64, 64),
+            "default": (12, 12),
             "tooltip": "Size of the tile to equalize the histogram of",
         },
         "clipLimit": {
             "name": "Clip limit/Slope",
-            "default": 5.0,
+            "default": 3.0,
             "tooltip": "Clip limit for contrast, avoiding noise amplification",
         },
     }
