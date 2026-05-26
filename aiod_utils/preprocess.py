@@ -388,7 +388,8 @@ def run_preprocess(
         return img
     # Run the methods in order
     for method in methods:
-        img = run_method(img, method["name"], method["params"], only_check=only_check)
+        if method:
+            img = run_method(img, method["name"], method["params"], only_check=only_check)
     return img
 
 
