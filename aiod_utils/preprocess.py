@@ -368,11 +368,9 @@ def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
     return methods
 
 def _check_multiple(methods: Optional[Union[list[dict], list[list[dict]]]]) -> bool:
-    if methods is None:
+    if not methods:
         return False
-    if any(isinstance(m, list) for m in methods):
-        return True
-    return False
+    return all(isinstance(m, list) for m in methods)
 
 
 def run_preprocess(
@@ -407,7 +405,7 @@ def get_all_preprocess_methods():
 
 def get_params_str(
     methods: Optional[Union[list[dict], str, Path]], to_save: bool = False
-) -> str:
+) -> None | str:
     """Get the string representation of the parameters for the given methods"""
     # If no methods (or empty methods due to no-op), return
     if not methods:
