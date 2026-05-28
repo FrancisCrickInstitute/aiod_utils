@@ -236,6 +236,22 @@ def generate_stack_indices(
     )
 
 
+def stack_to_shape(stack: Stack, ndim: int = None) -> tuple[int, ...]:
+    """
+    Convert a Stack to a plain shape tuple suitable for numpy/napari.
+
+    Returns (height, width) when depth == 1 (i.e. a 2-D image),
+    otherwise (depth, height, width).
+
+    Pass the original input ndim to preserve dimensionality regardless of depth value.
+    """
+    if ndim is None:
+        ndim = 2 if stack.depth == 1 else 3
+    if ndim == 2:
+        return (stack.height, stack.width)
+    return (stack.depth, stack.height, stack.width)
+
+
 def check_sizes(stack_indices):
     "Quick check to see if the stack sizes are all the same."
     sizes = []
