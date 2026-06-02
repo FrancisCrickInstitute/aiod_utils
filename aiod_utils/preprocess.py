@@ -380,14 +380,13 @@ def run_preprocess(
     only_check: bool = False,
 ):
     # Load and check all methods are valid
-    methods = load_methods(methods, parse=parse)
+    methods = load_methods(methods, parse=parse, filter_noop=True)
     # If no method is specified, return the original image
     if len(methods) == 0:
         return img
     # Run the methods in order
     for method in methods:
-        if method:
-            img = run_method(img, method["name"], method["params"], only_check=only_check)
+        img = run_method(img, method["name"], method["params"], only_check=only_check)
     return img
 
 
