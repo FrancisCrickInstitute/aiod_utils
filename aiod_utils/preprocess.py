@@ -1,14 +1,14 @@
-from abc import abstractmethod
 import json
-from pathlib import Path
 import re
-from typing import Optional, Union
 import warnings
+from abc import abstractmethod
+from pathlib import Path
+from typing import Optional, Union
 
 from cv2 import createCLAHE
 import numpy as np
-from skimage.measure import block_reduce
 import skimage
+from skimage.measure import block_reduce
 import yaml
 
 
@@ -185,12 +185,12 @@ class CLAHE(Preprocess):
     params: dict = {
         "tileGridSize": {
             "name": "Tile/Block size",
-            "default": (64, 64),
+            "default": (12, 12),
             "tooltip": "Size of the tile to equalize the histogram of",
         },
         "clipLimit": {
             "name": "Clip limit/Slope",
-            "default": 5.0,
+            "default": 3.0,
             "tooltip": "Clip limit for contrast, avoiding noise amplification",
         },
     }
@@ -324,7 +324,7 @@ def check_method(method, params):
         raise ValueError(f"Invalid parameters for {method} ({params}): {e}")
 
 
-def load_methods(methods: Union[list[dict], str, Path], parse: bool = True):
+def load_methods(methods: Union[list[dict], str, Path], parse: bool = True, filter_noop: bool = False):
     if isinstance(methods, (str, Path)):
         methods = Path(methods)
         # Handle JSON
@@ -335,25 +335,42 @@ def load_methods(methods: Union[list[dict], str, Path], parse: bool = True):
         elif methods.suffix in [".yaml", ".yml"]:
             with open(methods, "r") as f:
                 methods = yaml.safe_load(f)
+    # Parsing checks the methods and params are valid
     if parse:
-        return parse_methods(methods)
+        res = parse_methods(methods)
     else:
-        return methods
+        res = methods
+    # Filter no-op sets to avoid handling externally e.g. in the Segment-Flow preprocessing
+    if filter_noop:
+        res = [m for m in res if m]
+    return res
 
 
 def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
-    if methods is None:
+    # None and empty list both mean 'no preprocessing'; return [] for both.
+    if not methods:
         return []
-    # Handle parsing the full JSON of multiple sets
-    if isinstance(methods[0], list):
+    # Use _check_multiple to determine nesting robustly instead of indexing
+    # methods[0], which is fragile when sets include empty lists.
+    if _check_multiple(methods):
+        # List of preprocessing sets; empty sets (no-op) produce zero iterations.
         for method_set in methods:
             for method in method_set:
-                check_method(method["name"], method["params"])
-    # Handle parsing a single, preloaded set
+                # Skip no-ops
+                if method:
+                    check_method(method["name"], method["params"])
+    # Single preprocessing set.
     else:
         for method in methods:
-            check_method(method["name"], method["params"])
+            # Skip no-ops
+            if method:
+                check_method(method["name"], method["params"])
     return methods
+
+def _check_multiple(methods: Optional[Union[list[dict], list[list[dict]]]]) -> bool:
+    if not methods:
+        return False
+    return all(isinstance(m, list) for m in methods)
 
 
 def run_preprocess(
@@ -363,7 +380,7 @@ def run_preprocess(
     only_check: bool = False,
 ):
     # Load and check all methods are valid
-    methods = load_methods(methods, parse=parse)
+    methods = load_methods(methods, parse=parse, filter_noop=True)
     # If no method is specified, return the original image
     if len(methods) == 0:
         return img
@@ -387,9 +404,10 @@ def get_all_preprocess_methods():
 
 def get_params_str(
     methods: Optional[Union[list[dict], str, Path]], to_save: bool = False
-) -> str:
+) -> None | str:
     """Get the string representation of the parameters for the given methods"""
-    if methods is None:
+    # If no methods (or empty methods due to no-op), return
+    if not methods:
         return
     # Load and check all methods are valid
     methods = load_methods(methods, parse=True)
@@ -415,6 +433,7 @@ def get_downsample_factor(
     """Overloaded function to get downsample factor from either methods or filename"""
     if methods is None and filename is None:
         raise ValueError("Must provide either methods or filename!")
+    factor = None
     if filename is not None:
         downsample_factor = re.findall(
             r"Downsample-block_size=(\d),(\d),(\d)", filename
@@ -430,7 +449,7 @@ def get_downsample_factor(
         factor = None
         for d in methods:
             if d["name"] == "Downsample":
-                factor = d["params"]["block_size"]
+                factor = tuple(d["params"]["block_size"])
                 break
     return factor
 
