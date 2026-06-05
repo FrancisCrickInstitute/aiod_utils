@@ -148,19 +148,13 @@ class Downsample(Preprocess):
                 f"block_size must have 2 or 3 elements (H,W) or (D,H,W), got {bs}"
             )
 
-    def check_input(self, img=None, input_shape=None):
-        # Validate that input_shape is convertible to a Stack (2- or 3-tuple, or Stack).
-        # block_size is always (D, H, W) after __init__, so length is never mismatched.
-        if input_shape is None:
-            if img is None:
-                raise ValueError("Must provide either an image or input shape!")
-            input_shape = img.shape
-        _normalize_to_stack(input_shape)  # raises on invalid shape
+    def check_input(self, img=None):
+        # TODO: Add any checks here for image shape + block size compatibility.
+        # block size will always be Stack(D,H,W); optional warnings e.g. for block sizes that are not optimised for the image shape go here
         return img
 
     def get_output_shape(self, input_shape) -> Stack:
         stack = _normalize_to_stack(input_shape)
-        self.check_input(input_shape=stack)
         bs = self.kwarg_params["block_size"]  # always (D, H, W)
         if stack.depth == 1 and bs[0] > 1:
             warnings.warn(
@@ -172,12 +166,11 @@ class Downsample(Preprocess):
             out = int(np.ceil(s / b))
             return max(1, out if s % b == 0 else out - (s % b))
 
-        # Singleton depth is not downsampled (warning already issued above)
-        out_depth = 1 if stack.depth == 1 else _downsample_dim(stack.depth, bs[0])
         return Stack(
+            # Singleton depth is not downsampled
+            depth=_downsample_dim(stack.depth, bs[0]),
             height=_downsample_dim(stack.height, bs[1]),
             width=_downsample_dim(stack.width, bs[2]),
-            depth=out_depth,
         )
 
     def run(self, img):
