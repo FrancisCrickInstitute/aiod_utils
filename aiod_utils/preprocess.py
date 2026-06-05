@@ -158,7 +158,7 @@ class Downsample(Preprocess):
         _normalize_to_stack(input_shape)  # raises on invalid shape
         return img
 
-    def get_output_shape(self, input_shape):
+    def get_output_shape(self, input_shape) -> Stack:
         stack = _normalize_to_stack(input_shape)
         self.check_input(input_shape=stack)
         bs = self.kwarg_params["block_size"]  # always (D, H, W)
@@ -499,7 +499,12 @@ def get_downsample_factor(
     return factor
 
 
-def get_output_shape(options, input_shape):
+def get_output_shape(options, input_shape) -> Stack:
+    """Return the output shape after applying all shape-changing preprocessing steps.
+
+    ``input_shape`` may be a Stack, a 2-tuple (H, W), or a 3-tuple (D, H, W).
+    Always returns a Stack.
+    """
     # Load and check all methods are valid
     methods = load_methods(options, parse=False)
     # Normalise once at the boundary; all internal work is done on Stack
