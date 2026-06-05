@@ -149,8 +149,9 @@ class Downsample(Preprocess):
             )
 
     def check_input(self, img=None):
-        # TODO: Add any checks here for image shape + block size compatibility.
-        # block size will always be Stack(D,H,W); optional warnings e.g. for block sizes that are not optimised for the image shape go here
+        # TODO: Change to ND support 
+        if len(img.shape) not in (2,3):
+            raise ValueError("Downsampling currently supports 2D and 3D input data only")
         return img
 
     def get_output_shape(self, input_shape) -> Stack:
