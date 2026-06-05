@@ -14,7 +14,7 @@ import yaml
 from aiod_utils.stacks import Stack
 
 
-def _normalize_to_stack(shape) -> Stack:
+def _normalize_to_stack(shape: Stack | tuple[int, ...]) -> Stack:
     """
     Normalise any shape representation to a Stack.
 
