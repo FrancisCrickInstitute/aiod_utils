@@ -11,6 +11,29 @@ import skimage
 from skimage.measure import block_reduce
 import yaml
 
+from aiod_utils.stacks import Stack
+
+
+def _normalize_to_stack(shape: Stack | tuple[int, ...]) -> Stack:
+    """
+    Normalise any shape representation to a Stack.
+
+    Accepted inputs:
+    - Stack (returned as-is)
+    - 2-tuple/list (H, W)       → Stack(height=H, width=W, depth=1)
+    - 3-tuple/list (D, H, W)    → Stack(height=H, width=W, depth=D)
+    """
+    if isinstance(shape, Stack):
+        return shape
+    shape = tuple(shape)
+    if len(shape) == 2:
+        return Stack(height=shape[0], width=shape[1], depth=1)
+    if len(shape) == 3:
+        return Stack(height=shape[1], width=shape[2], depth=shape[0])
+    raise ValueError(
+        f"Shape must be a Stack, a 2-tuple (H, W), or a 3-tuple (D, H, W); got length {len(shape)}: {shape}"
+    )
+
 
 class Preprocess:
     # Display/readable name for the preprocessing function to use in UI
@@ -113,39 +136,55 @@ class Downsample(Preprocess):
         if params["method"] not in self.methods:
             raise ValueError("Invalid method for downsampling!")
         super().__init__(params)
-
-    def check_input(self, img=None, input_shape: Optional[tuple[int, ...]] = None):
-        # Check the block size is valid
-        if input_shape is None:
-            if img is None:
-                raise ValueError("Must provide either an image or input shape!")
-            input_shape = img.shape
-        if len(self.kwarg_params["block_size"]) != len(input_shape):
+        # Normalise block_size to always be a 3-tuple (D, H, W).
+        # A 2-tuple (H, W) is treated as a 2-D image with D factor = 1.
+        bs = tuple(self.kwarg_params["block_size"])
+        if len(bs) == 2:
+            self.kwarg_params["block_size"] = (1, bs[0], bs[1])
+        elif len(bs) == 3:
+            self.kwarg_params["block_size"] = bs
+        else:
             raise ValueError(
-                f"Block size ({self.kwarg_params['block_size']}) must have the same length as the image shape ({input_shape})"
+                f"block_size must have 2 or 3 elements (H,W) or (D,H,W), got {bs}"
             )
+
+    def check_input(self, img=None):
+        # TODO: Change to ND support 
+        if len(img.shape) not in (2,3):
+            raise ValueError("Downsampling currently supports 2D and 3D input data only")
         return img
 
-    def get_output_shape(self, input_shape: tuple[int, ...]) -> tuple[int, ...]:
-        self.check_input(input_shape=input_shape)
-        res = []
-        for s, bs in zip(input_shape, self.kwarg_params["block_size"]):
-            # Get the remainder as a result of padding
-            out = int(np.ceil(s / bs))
-            if s % bs == 0:
-                res.append(out)
-            else:
-                res.append(out - (s % bs))
-        return tuple(res)
+    def get_output_shape(self, input_shape) -> Stack:
+        stack = _normalize_to_stack(input_shape)
+        bs = self.kwarg_params["block_size"]  # always (D, H, W)
+        if stack.depth == 1 and bs[0] > 1:
+            warnings.warn(
+                f"Downsample D factor ({bs[0]}) > 1 on a 2-D image (depth=1); "
+                "the D factor will be ignored. Set it to 1 to suppress this warning."
+            )
+
+        def _downsample_dim(s, b):
+            out = int(np.ceil(s / b))
+            return max(1, out if s % b == 0 else out - (s % b))
+
+        return Stack(
+            # Singleton depth is not downsampled
+            depth=_downsample_dim(stack.depth, bs[0]),
+            height=_downsample_dim(stack.height, bs[1]),
+            width=_downsample_dim(stack.width, bs[2]),
+        )
 
     def run(self, img):
         orig_dtype = img.dtype
         self.check_input(img=img)
+        bs = self.kwarg_params["block_size"]  # always (D, H, W)
+        # Use only the H/W factors when the image is 2-D
+        effective_bs = bs[1:] if img.ndim == 2 else bs
         # Round the result to the nearest integer to avoid rounding down when casting back to original dtype
         res = np.round(
             block_reduce(
                 img,
-                block_size=tuple(self.kwarg_params["block_size"]),
+                block_size=effective_bs,
                 func=self.methods[self.kwarg_params["method"]],
             )
         ).astype(orig_dtype)
@@ -155,7 +194,7 @@ class Downsample(Preprocess):
         # We care if padding was needed, so look at original image size
         for i, size in enumerate(img.shape):
             down_size = res.shape[i]
-            pad_size = size % self.kwarg_params["block_size"][i]
+            pad_size = size % effective_bs[i]
             if pad_size == 0:
                 # But we use the downsampled size for slicing
                 # If divisable by block size, we can use the full size
@@ -163,7 +202,7 @@ class Downsample(Preprocess):
             else:
                 # Otherwise, remove the padded row(s)/col(s)/etc. from the downsampled image
                 changed = True
-                slices.append(slice(0, down_size - pad_size))
+                slices.append(slice(0, max(1, down_size - pad_size)))
         if changed:
             warnings.warn(
                 "Downsampling factor requires padding, so the image was cropped! Final result will have at least 1 pixel gap."
@@ -454,13 +493,18 @@ def get_downsample_factor(
     return factor
 
 
-def get_output_shape(options, input_shape: tuple[int, ...]):
+def get_output_shape(options, input_shape) -> Stack:
+    """Return the output shape after applying all shape-changing preprocessing steps.
+
+    ``input_shape`` may be a Stack, a 2-tuple (H, W), or a 3-tuple (D, H, W).
+    Always returns a Stack.
+    """
     # Load and check all methods are valid
     methods = load_methods(options, parse=False)
-    # If no method is specified, return the input shape
+    # Normalise once at the boundary; all internal work is done on Stack
+    output_shape = _normalize_to_stack(input_shape)
     if len(methods) == 0:
-        return input_shape
-    output_shape = input_shape
+        return output_shape
     for method_dict in methods:
         method, params = method_dict["name"], method_dict["params"]
         # Get the selected preprocess class
