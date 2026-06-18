@@ -1,7 +1,6 @@
 import warnings
 from collections import namedtuple
 from math import floor
-from typing import Union
 
 from numpy import dtype as np_dtype
 
@@ -63,7 +62,7 @@ def compute_max_substack_size(
     return Stack(height=h, width=w, depth=d, channels=image_shape.channels)
 
 
-def auto_size(size: int, max_size: Union[int, float]) -> int:
+def auto_size(size: int, max_size: int | float) -> int:
     """
     Calculate the number of stacks to use for a given size, based on a maximum size.
     """
@@ -119,7 +118,8 @@ def calc_num_stacks_dim(
     if num_stacks_dim == 1 and overlap > 0:
         warnings.warn(
             f"Ignoring overlap setting {overlap} for dimension {dim} with only 1 stack"
-            + (" (calculated automatically)" if req_stacks_dim == "auto" else "")
+            + (" (calculated automatically)" if req_stacks_dim == "auto" else ""),
+            stacklevel=2,
         )
     return num_stacks_dim, eff_size
 
@@ -260,7 +260,4 @@ def check_sizes(stack_indices):
         for stack_dim in stack:
             stack_size += stack_dim[1] - stack_dim[0]
         sizes.append(stack_size)
-    if len(set(sizes)) == 1:
-        return True
-    else:
-        return False
+    return len(set(sizes)) == 1
