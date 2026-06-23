@@ -58,7 +58,7 @@ def instance_3d_mask():
 )
 def test_rle_encoding_decoding(mask, mask_type, request):
     mask = request.getfixturevalue(mask)
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     # Encode the mask
     rle = encode(mask, mask_type=mask_type)
@@ -82,7 +82,7 @@ def test_rle_encoding_decoding(mask, mask_type, request):
 )
 def test_rle_empty_and_single_pixel_masks(mask, mask_type, request):
     mask = request.getfixturevalue(mask)
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     # Encode the mask
     rle = encode(mask, mask_type=mask_type)
@@ -129,7 +129,7 @@ def test_rle_empty_and_single_pixel_masks(mask, mask_type, request):
     ],
 )
 def test_instance_to_binary_conversion(mask, mask_type, request):
-    from aiod_utils.rle import encode, decode, instance_to_binary
+    from aiod_utils.rle import decode, encode, instance_to_binary
 
     instance_mask = request.getfixturevalue(mask)
     binary_mask = request.getfixturevalue(mask_type)
@@ -145,6 +145,7 @@ def test_instance_to_binary_conversion(mask, mask_type, request):
 
 # ---- Metadata handling tests ----
 
+
 @pytest.mark.parametrize(
     "mask, mask_type",
     [
@@ -157,7 +158,7 @@ def test_instance_to_binary_conversion(mask, mask_type, request):
 def test_metadata_preserved(mask, mask_type, request):
     """User-supplied metadata must survive an encode → decode round-trip."""
     mask = request.getfixturevalue(mask)
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     user_meta = {"source": "test_scan", "resolution_mm": 0.5, "labels": [1, 2, 3]}
     rle = encode(mask, mask_type=mask_type, metadata=user_meta)
@@ -180,7 +181,7 @@ def test_metadata_preserved(mask, mask_type, request):
 def test_empty_metadata_preserved(mask, mask_type, request):
     """Encoding with no explicit metadata should only contain the auto-inserted mask_type."""
     mask = request.getfixturevalue(mask)
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     rle = encode(mask, mask_type=mask_type)
     _, returned_meta = decode(rle, mask_type=mask_type)
@@ -201,7 +202,7 @@ def test_empty_metadata_preserved(mask, mask_type, request):
 def test_metadata_does_not_corrupt_mask(mask, mask_type, request):
     """Providing user metadata must not alter the decoded mask data."""
     mask = request.getfixturevalue(mask)
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     user_meta = {"info": "extra", "value": 42}
     rle_with_meta = encode(mask, mask_type=mask_type, metadata=user_meta)
@@ -252,7 +253,7 @@ def test_metadata_not_leaked_into_rle_slices(mask, mask_type, request):
 def test_metadata_preserved_through_instance_to_binary():
     """instance_to_binary must carry user metadata from the instance RLE
     into the newly-created binary RLE."""
-    from aiod_utils.rle import encode, decode, instance_to_binary
+    from aiod_utils.rle import decode, encode, instance_to_binary
 
     instance_mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
     user_meta = {"patient_id": "P001", "modality": "CT"}
@@ -269,7 +270,7 @@ def test_metadata_key_collision_with_idx():
     instance encoding (the internal 'idx' usage in _encode_binary takes a
     numpy array of instance labels, whereas user 'idx' is arbitrary).
     Encoding and decoding must still produce a correct mask."""
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     instance_mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
     # 'idx' is also used internally; passing it here should not silently break things.
@@ -305,7 +306,7 @@ def test_rle_4d_mask():
     ],
 )
 def test_consistent_shape(mask, request):
-    from aiod_utils.rle import encode, decode
+    from aiod_utils.rle import decode, encode
 
     mask = request.getfixturevalue(mask)
     # Encode the mask

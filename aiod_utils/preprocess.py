@@ -3,13 +3,12 @@ import re
 import warnings
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Union
 
-from cv2 import createCLAHE
 import numpy as np
 import skimage
-from skimage.measure import block_reduce
 import yaml
+from cv2 import createCLAHE
+from skimage.measure import block_reduce
 
 from aiod_utils.stacks import Stack
 
@@ -149,9 +148,11 @@ class Downsample(Preprocess):
             )
 
     def check_input(self, img=None):
-        # TODO: Change to ND support 
-        if len(img.shape) not in (2,3):
-            raise ValueError("Downsampling currently supports 2D and 3D input data only")
+        # TODO: Change to ND support
+        if len(img.shape) not in (2, 3):
+            raise ValueError(
+                "Downsampling currently supports 2D and 3D input data only"
+            )
         return img
 
     def get_output_shape(self, input_shape) -> Stack:
@@ -160,7 +161,8 @@ class Downsample(Preprocess):
         if stack.depth == 1 and bs[0] > 1:
             warnings.warn(
                 f"Downsample D factor ({bs[0]}) > 1 on a 2-D image (depth=1); "
-                "the D factor will be ignored. Set it to 1 to suppress this warning."
+                "the D factor will be ignored. Set it to 1 to suppress this warning.",
+                stacklevel=2,
             )
 
         def _downsample_dim(s, b):
@@ -205,7 +207,8 @@ class Downsample(Preprocess):
                 slices.append(slice(0, max(1, down_size - pad_size)))
         if changed:
             warnings.warn(
-                "Downsampling factor requires padding, so the image was cropped! Final result will have at least 1 pixel gap."
+                "Downsampling factor requires padding, so the image was cropped! Final result will have at least 1 pixel gap.",
+                stacklevel=2,
             )
         return res[tuple(slices)]
 
@@ -292,9 +295,7 @@ class Filter(Preprocess):
         },
     }
 
-    tooltip: str = (
-        "Apply a rank filter to the image. Note that 3D filters cannot be used on 2D images and vice versa."
-    )
+    tooltip: str = "Apply a rank filter to the image. Note that 3D filters cannot be used on 2D images and vice versa."
 
     def __init__(self, params: dict):
         if params["footprint"] not in self.filters:
@@ -334,8 +335,8 @@ class Filter(Preprocess):
 
 def run_method(
     img: np.ndarray,
-    method: Optional[str] = None,
-    params: Optional[dict] = None,
+    method: str | None = None,
+    params: dict | None = None,
     only_check: bool = False,
 ):
     # Get the selected preprocess class
@@ -359,33 +360,32 @@ def check_method(method, params):
     # Check the parameters are valid
     try:
         {cls.name: cls for cls in Preprocess.__subclasses__()}[method](params=params)
-    except Exception as e:
-        raise ValueError(f"Invalid parameters for {method} ({params}): {e}")
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(f"Invalid parameters for {method} ({params}): {e}") from e
 
 
-def load_methods(methods: Union[list[dict], str, Path], parse: bool = True, filter_noop: bool = False):
+def load_methods(
+    methods: list[dict] | str | Path, parse: bool = True, filter_noop: bool = False
+):
     if isinstance(methods, (str, Path)):
         methods = Path(methods)
         # Handle JSON
         if methods.suffix == ".json":
-            with open(methods, "r") as f:
+            with open(methods) as f:
                 methods = json.load(f)
         # Handle YAML
         elif methods.suffix in [".yaml", ".yml"]:
-            with open(methods, "r") as f:
+            with open(methods) as f:
                 methods = yaml.safe_load(f)
     # Parsing checks the methods and params are valid
-    if parse:
-        res = parse_methods(methods)
-    else:
-        res = methods
+    res = parse_methods(methods) if parse else methods
     # Filter no-op sets to avoid handling externally e.g. in the Segment-Flow preprocessing
     if filter_noop:
         res = [m for m in res if m]
     return res
 
 
-def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
+def parse_methods(methods: list[dict] | list[list[dict]] | None):
     # None and empty list both mean 'no preprocessing'; return [] for both.
     if not methods:
         return []
@@ -406,7 +406,8 @@ def parse_methods(methods: Optional[Union[list[dict], list[list[dict]]]]):
                 check_method(method["name"], method["params"])
     return methods
 
-def _check_multiple(methods: Optional[Union[list[dict], list[list[dict]]]]) -> bool:
+
+def _check_multiple(methods: list[dict] | list[list[dict]] | None) -> bool:
     if not methods:
         return False
     return all(isinstance(m, list) for m in methods)
@@ -414,7 +415,7 @@ def _check_multiple(methods: Optional[Union[list[dict], list[list[dict]]]]) -> b
 
 def run_preprocess(
     img: np.ndarray,
-    methods: Optional[Union[list[dict], str, Path]],
+    methods: list[dict] | str | Path | None,
     parse: bool = True,
     only_check: bool = False,
 ):
@@ -442,7 +443,7 @@ def get_all_preprocess_methods():
 
 
 def get_params_str(
-    methods: Optional[Union[list[dict], str, Path]], to_save: bool = False
+    methods: list[dict] | str | Path | None, to_save: bool = False
 ) -> None | str:
     """Get the string representation of the parameters for the given methods"""
     # If no methods (or empty methods due to no-op), return
@@ -466,9 +467,9 @@ def get_params_str(
 
 
 def get_downsample_factor(
-    methods: Optional[Union[list[dict], str, Path]] = None,
-    filename: Optional[str] = None,
-) -> Optional[tuple[int, ...]]:
+    methods: list[dict] | str | Path | None = None,
+    filename: str | None = None,
+) -> tuple[int, ...] | None:
     """Overloaded function to get downsample factor from either methods or filename"""
     if methods is None and filename is None:
         raise ValueError("Must provide either methods or filename!")

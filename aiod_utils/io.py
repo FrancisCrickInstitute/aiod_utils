@@ -1,51 +1,55 @@
+import warnings
 from collections import defaultdict
-from itertools import repeat
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Union, Optional, Type
-import warnings
 
-from bioio import BioImage
-from bioio_base.reader import Reader
 import dask.array as da
 import numpy as np
 import pandas as pd
+from bioio import BioImage
+from bioio_base.reader import Reader
 
 
-def _guess_reader(fpath: Union[str, Path]) -> Reader | None:
-    ext = ''.join(Path(fpath).suffixes).lower()
+def _guess_reader(fpath: str | Path) -> type[Reader] | None:
+    ext = "".join(Path(fpath).suffixes).lower()
     try:
         if ext in [".ome.tiff", ".ome.tif"]:
             from bioio_ome_tiff import Reader as OMETiffReader
+
             return OMETiffReader
         elif ext in [".tif", ".tiff"]:
             from bioio_tifffile import Reader as TiffReader
+
             return TiffReader
         elif ext in [".zarr", ".ome.zarr"]:
             from bioio_ome_zarr import Reader as ZarrReader
+
             return ZarrReader
         elif ext in [".jpg", ".jpeg", ".png"]:
             from bioio_imageio import Reader as ImageIOReader
+
             return ImageIOReader
         elif ext in [".nd2"]:
             from bioio_nd2 import Reader as ND2Reader
+
             return ND2Reader
     except ModuleNotFoundError as e:
         warnings.warn(
-            f"Recommended reader plugin {e.name} for file type {ext} not installed"
+            f"Recommended reader plugin {e.name} for file type {ext} not installed",
+            stacklevel=2,
         )
     return None
 
 
 def guess_rgba(img: BioImage):
     # https://github.com/bioio-devs/bioio/issues/174#issuecomment-3843003521
-    return 'S' in img.dims.order
+    return "S" in img.dims.order
 
 
 def load_image_data(
-    image: Union[str, Path] | BioImage,
-    dim_order: str="CZYX",
-    as_dask: bool=False,
+    image: str | Path | BioImage,
+    dim_order: str = "CZYX",
+    as_dask: bool = False,
     rgb_as_channels=True,
     **kwargs,
 ) -> np.ndarray | da.Array:
@@ -55,17 +59,17 @@ def load_image_data(
         load_image(...,) => load_image(...,)
         load_image(..., return_array=True) => load_image_data(...)
         load_image(..., return_dask=True) => load_image_data(..., as_dask=True)
-        
+
     Inputs
     ======
-    
+
     image: file path or BioImage object
-        
+
     Note
     ====
-    
+
     In Bioio, RGB images by default store the RGB dimension as in samples 'S', separate from channels 'C' (see bioio-devs/bioio#174). If `rgb_as_channels` is True, and if 'C' is requested in the output `dim_order`, the 'S' dimension will be remapped to 'C'.
-    """        
+    """
     if isinstance(image, (str, Path)):
         image = load_image(image, **kwargs)
     # Check the dim_order, and remap obvious aliases
@@ -87,8 +91,8 @@ def load_image_data(
 
 
 def load_image(
-    fpath: Union[str, Path],
-    reader: Optional[Type[Reader]] = None,
+    fpath: str | Path,
+    reader: type[Reader] | None = None,
 ) -> BioImage:
     # Load the image with the requested reader
     # If no reader provided, guess an appropriate plugin or fall back on bioio default plugin order
@@ -104,9 +108,9 @@ def image_paths_to_csv(
     dimensions: Sequence[dict[str, int]] | dict[str, int] | None = None,
     dtypes: Sequence[str | np.dtype] | str | np.dtype | None = None,
     overwrite: bool = False,
-    **kwargs
+    **kwargs,
 ):
-    '''
+    """
     Write image shape details to a csv file, given an input image path or list of paths.
     Optionally provide shape details (per image path) to be written in the form of dimensions dict with keys from STCZYX:
         dimensions = {
@@ -116,39 +120,50 @@ def image_paths_to_csv(
     If shape info are not provided or are incomplete, will attempt to read from the image metadata if available.
     Will raise FileExistsError if overwrite=False and output_csv_path exists.
     Any additional kwargs will be forwarded to pandas.DataFram.to_csv()
-    '''
+    """
 
     if not overwrite and Path(output_csv_path).exists():
-        raise FileExistsError(f"Output csv file {output_csv_path} already exists and overwrite is set to False.")
-    
+        raise FileExistsError(
+            f"Output csv file {output_csv_path} already exists and overwrite is set to False."
+        )
+
     output = defaultdict(list)
-    
+
     if isinstance(image_paths, (str, Path)):
         image_paths = [image_paths]
     if dimensions:
         if isinstance(dimensions, dict):
             dimensions = [dimensions]
         if len(dimensions) != len(image_paths):
-            raise ValueError("If providing dimensions, must provide one dimensions dict per image path.")
+            raise ValueError(
+                "If providing dimensions, must provide one dimensions dict per image path."
+            )
     else:
         # Fetch dimensions for each image from metadata
         # TODO: When this is implemented, might as well enable fetching dtype while we're at it
-        raise NotImplementedError("Fetching dimensions from image metadata not yet implemented.")
+        raise NotImplementedError(
+            "Fetching dimensions from image metadata not yet implemented."
+        )
     if dtypes is not None:
         if isinstance(dtypes, (str, np.dtype)):
             dtypes = [dtypes]
         if len(dtypes) != len(image_paths):
-            raise ValueError("If providing dtypes, must provide one dtype per image path.")
-    for path, shape, dt in zip(image_paths, dimensions, dtypes or repeat(None)):
+            raise ValueError(
+                "If providing dtypes, must provide one dtype per image path."
+            )
+    dt_iter = dtypes if dtypes is not None else [None] * len(image_paths)
+    for path, shape, dt in zip(image_paths, dimensions, dt_iter, strict=True):
         output["img_path"].append(str(path))
         try:
-            output["num_slices"].append(shape.get('Z', 1))
-            output["height"].append(shape.get('Y') or shape['H']) # raises KeyError
-            output["width"].append(shape.get('X') or shape['W']) # raises KeyError
-            output["channels"].append(shape.get('C', 1))
+            output["num_slices"].append(shape.get("Z", 1))
+            output["height"].append(shape.get("Y") or shape["H"])  # raises KeyError
+            output["width"].append(shape.get("X") or shape["W"])  # raises KeyError
+            output["channels"].append(shape.get("C", 1))
         except KeyError as e:
             # NOTE: this message will give keyerror for H or W, without hinting to use Y and X instead
-            raise ValueError(f"Dimensions dict for image {path} is missing required key: {e}")
+            raise ValueError(
+                f"Dimensions dict for image {path} is missing required key: {e}"
+            ) from e
         if dt is not None:
             output["dtype"].append(np.dtype(dt).name)
         else:
@@ -157,9 +172,7 @@ def image_paths_to_csv(
     df.to_csv(output_csv_path, **kwargs)
 
 
-def extract_idxs_from_fname(
-    fname: str, downsample_factor: Sequence[int] | None = None
-):
+def extract_idxs_from_fname(fname: str, downsample_factor: Sequence[int] | None = None):
     # Extract the indices from the filename
     idx_ranges = Path(fname).stem.split("_")[-3:]
     start_x, end_x = map(int, idx_ranges[0].split("x")[1].split("-"))
@@ -218,4 +231,3 @@ def reduce_dtype(arr: np.ndarray, max_val: int | None = None):
     # Otherwise convert it
     else:
         return arr.astype(best_dtype, copy=False)
-

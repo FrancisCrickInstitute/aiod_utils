@@ -1,7 +1,7 @@
-from pathlib import Path
 import pickle
-from typing import Union, Optional, Any
 import warnings
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -12,12 +12,11 @@ EXTENSIONS = [".pkl", ".pickle", ".rle"]
 
 def encode(
     mask: np.ndarray,
-    mask_type: Optional[str] = None,
-    metadata: Optional[dict[str, Any]] = None,
+    mask_type: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> list[dict]:
-    assert isinstance(
-        mask, np.ndarray
-    ), f"mask must be a numpy array, not {type(mask)}"
+    if not isinstance(mask, np.ndarray):
+        raise TypeError(f"mask must be a numpy array, not {type(mask)}")
     if metadata is None:
         metadata = {}
     # Convert to lowest bit type
@@ -25,7 +24,7 @@ def encode(
     # Try to infer the mask type if not provided
     if mask_type is None:
         mask_type = check_mask_type(mask)
-        warnings.warn(f"Mask type not provided, inferring as {mask_type}")
+        warnings.warn(f"Mask type not provided, inferring as {mask_type}", stacklevel=2)
     # Give a batch dimension if it's not there
     if mask.ndim == 2:
         mask = np.expand_dims(mask, axis=0)
@@ -53,10 +52,7 @@ def encode(
 
 def check_mask_type(mask: np.ndarray) -> str:
     # Boolean masks are binary
-    if mask.dtype == bool:
-        mask_type = "binary"
-    # Masks with only 2 unique values are binary
-    elif np.unique(mask).shape[0] <= 2:
+    if mask.dtype == bool or np.unique(mask).shape[0] <= 2:
         mask_type = "binary"
     # Otherwise, it's an instance mask
     else:
@@ -128,7 +124,10 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
             instances = np.array([0], dtype=np.uint8)
         else:
             # Convert into a batch of binarised masks for each instance
-            mask_batch = mask_slice[np.newaxis, ...] == np.unique(instances)[:, np.newaxis, np.newaxis]
+            mask_batch = (
+                mask_slice[np.newaxis, ...]
+                == np.unique(instances)[:, np.newaxis, np.newaxis]
+            )
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
         encoded_masks = _encode_binary(mask_batch, idx=instances)
@@ -137,7 +136,7 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
     return out
 
 
-def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray, dict]:
+def decode(rle: list[dict], mask_type: str | None = None) -> tuple[np.ndarray, dict]:
     metadata = rle[-1]
     encoding = rle[:-1]
 
@@ -148,7 +147,10 @@ def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray
         else:
             # Fall back to structure-based inference
             mask_type = check_rle_type(encoding)
-            warnings.warn(f"Mask type not found in metadata, inferring as {mask_type}")
+            warnings.warn(
+                f"Mask type not found in metadata, inferring as {mask_type}",
+                stacklevel=2,
+            )
     # TODO: Some basic checks for rle key validity
     if mask_type == "binary":
         res = _decode_binary(encoding)
@@ -160,10 +162,7 @@ def decode(rle: list[dict], mask_type: Optional[str] = None) -> tuple[np.ndarray
 
 
 def check_rle_type(rle: list[dict]) -> str:
-    if isinstance(rle[0], list):
-        mask_type = "instance"
-    else:
-        mask_type = "binary"
+    mask_type = "instance" if isinstance(rle[0], list) else "binary"
     return mask_type
 
 
@@ -205,7 +204,7 @@ def _decode_instance(rle) -> np.ndarray:
     return np.stack(out)
 
 
-def save_encoding(rle: list[dict], fpath: Union[str, Path]):
+def save_encoding(rle: list[dict], fpath: str | Path):
     # Ensure filename matches
     if not isinstance(fpath, Path):
         fpath = Path(fpath)
@@ -219,7 +218,7 @@ def save_encoding(rle: list[dict], fpath: Union[str, Path]):
         pickle.dump(rle, f)
 
 
-def load_encoding(fpath: Union[str, Path]) -> list[dict]:
+def load_encoding(fpath: str | Path) -> list[dict]:
     # Ensure filename matches
     if not isinstance(fpath, Path):
         fpath = Path(fpath)
