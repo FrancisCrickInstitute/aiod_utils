@@ -15,7 +15,8 @@ def encode(
     mask_type: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> list[dict]:
-    assert isinstance(mask, np.ndarray), f"mask must be a numpy array, not {type(mask)}"
+    if not isinstance(mask, np.ndarray):
+        raise TypeError(f"mask must be a numpy array, not {type(mask)}")
     if metadata is None:
         metadata = {}
     # Convert to lowest bit type
