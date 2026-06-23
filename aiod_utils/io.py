@@ -152,9 +152,8 @@ def image_paths_to_csv(
             raise ValueError(
                 "If providing dtypes, must provide one dtype per image path."
             )
-    for path, shape, dt in zip(
-        image_paths, dimensions, dtypes or repeat(None), strict=True
-    ):
+    dt_iter = dtypes if dtypes is not None else [None] * len(image_paths)
+    for path, shape, dt in zip(image_paths, dimensions, dt_iter, strict=True):
         output["img_path"].append(str(path))
         try:
             output["num_slices"].append(shape.get("Z", 1))
