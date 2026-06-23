@@ -17,6 +17,7 @@ GiB = 2**30
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def max_voxels(memory_bytes, dtype, n_channels):
     return memory_bytes * HEADROOM_FACTOR / (np_dtype(dtype).itemsize * n_channels)
 
@@ -28,40 +29,55 @@ def uniform_cap(val):
 
 # ── auto_size ─────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("size, max_size, expected", [
-    (1000, 200,  5),   # exact fit
-    (1001, 200,  6),   # just over → extra split
-    (100,  200,  1),   # image smaller than cap → 1 split
-    (200,  200,  1),   # exact cap size → 1 split
-    (1,    200,  1),   # single pixel
-])
+
+@pytest.mark.parametrize(
+    "size, max_size, expected",
+    [
+        (1000, 200, 5),  # exact fit
+        (1001, 200, 6),  # just over → extra split
+        (100, 200, 1),  # image smaller than cap → 1 split
+        (200, 200, 1),  # exact cap size → 1 split
+        (1, 200, 1),  # single pixel
+    ],
+)
 def test_auto_size(size, max_size, expected):
     assert auto_size(size, max_size) == expected
 
 
 # ── compute_max_substack_size ─────────────────────────────────────────────────
 
-@pytest.mark.parametrize("memory_bytes, dtype, n_channels, img_shape", [
-    (100 * GiB, "uint8",   1, Stack(500,  500,  50,  1)),  # image fits easily
-    (100 * GiB, "float32", 1, Stack(200,  200,  20,  1)),  # image fits easily
-    (100 * MiB, "float32", 1, Stack(2000, 400, 100,  1)),  # image must be split
-    (100 * MiB, "float32", 3, Stack(2000, 400, 100,  3)),  # multi-channel, split
-])
-def test_compute_max_substack_size_budget_not_exceeded(memory_bytes, dtype, n_channels, img_shape):
+
+@pytest.mark.parametrize(
+    "memory_bytes, dtype, n_channels, img_shape",
+    [
+        (100 * GiB, "uint8", 1, Stack(500, 500, 50, 1)),  # image fits easily
+        (100 * GiB, "float32", 1, Stack(200, 200, 20, 1)),  # image fits easily
+        (100 * MiB, "float32", 1, Stack(2000, 400, 100, 1)),  # image must be split
+        (100 * MiB, "float32", 3, Stack(2000, 400, 100, 3)),  # multi-channel, split
+    ],
+)
+def test_compute_max_substack_size_budget_not_exceeded(
+    memory_bytes, dtype, n_channels, img_shape
+):
     result = compute_max_substack_size(memory_bytes, dtype, img_shape)
     voxels = result.height * result.width * result.depth
     assert voxels <= max_voxels(memory_bytes, dtype, n_channels)
 
 
-@pytest.mark.parametrize("memory_bytes, dtype, n_channels, img_shape", [
-    (100 * GiB, "uint8",   1, Stack(500, 500, 50, 1)),
-    (100 * GiB, "float32", 1, Stack(200, 200, 20, 1)),
-])
-def test_compute_max_substack_size_whole_image_fits(memory_bytes, dtype, n_channels, img_shape):
+@pytest.mark.parametrize(
+    "memory_bytes, dtype, n_channels, img_shape",
+    [
+        (100 * GiB, "uint8", 1, Stack(500, 500, 50, 1)),
+        (100 * GiB, "float32", 1, Stack(200, 200, 20, 1)),
+    ],
+)
+def test_compute_max_substack_size_whole_image_fits(
+    memory_bytes, dtype, n_channels, img_shape
+):
     result = compute_max_substack_size(memory_bytes, dtype, img_shape)
     assert result.height == img_shape.height
-    assert result.width  == img_shape.width
-    assert result.depth  == img_shape.depth
+    assert result.width == img_shape.width
+    assert result.depth == img_shape.depth
 
 
 def test_compute_max_substack_size_degenerate_budget():
@@ -74,14 +90,19 @@ def test_compute_max_substack_size_degenerate_budget():
 # At 100MB float32 this produces h≈1252, w≈250, d≈62 (computed analytically).
 ANISO = Stack(2000, 400, 100, 1)
 
+
 def test_compute_max_substack_size_aspect_ratio_hw():
     result = compute_max_substack_size(100 * MiB, "float32", ANISO)
-    assert result.height / result.width == pytest.approx(ANISO.height / ANISO.width, rel=0.05)
+    assert result.height / result.width == pytest.approx(
+        ANISO.height / ANISO.width, rel=0.05
+    )
 
 
 def test_compute_max_substack_size_aspect_ratio_hd():
     result = compute_max_substack_size(100 * MiB, "float32", ANISO)
-    assert result.height / result.depth == pytest.approx(ANISO.height / ANISO.depth, rel=0.05)
+    assert result.height / result.depth == pytest.approx(
+        ANISO.height / ANISO.depth, rel=0.05
+    )
 
 
 def test_compute_max_substack_size_multichannel_smaller():
@@ -89,9 +110,9 @@ def test_compute_max_substack_size_multichannel_smaller():
     img = Stack(10000, 10000, 200, 1)
     single = compute_max_substack_size(1 * GiB, "float32", img)
     img = Stack(10000, 10000, 200, 3)
-    multi  = compute_max_substack_size(1 * GiB, "float32", img)
+    multi = compute_max_substack_size(1 * GiB, "float32", img)
     vol_single = single.height * single.width * single.depth
-    vol_multi  = multi.height  * multi.width  * multi.depth
+    vol_multi = multi.height * multi.width * multi.depth
     assert vol_multi < vol_single
 
 
@@ -100,28 +121,32 @@ def test_compute_max_substack_size_multichannel_smaller():
 # All cases use overlap=0.0 (eff_size == dim_size) unless noted.
 # cap is a uniform Stack so any dim attribute gives the same value.
 
-@pytest.mark.parametrize("dim_size, req, cap_val, expected_n", [
-    # auto mode
-    (1000, "auto", 200,  5),   # 1000//200=5, 1000/5==200 (exact) → 5
-    (1001, "auto", 200,  6),   # 1001//200=5, 1001/5>200 → 6
-    (100,  "auto", 200,  1),   # image smaller than cap → 1
-    # explicit valid request (no sanity override triggered)
-    (1000, "3",    200,  3),
-    (1000, "1",    500,  1),   # 1 substack, substack=1000 < 500*3=1500 and > 500/20=25 ✓
-    # clamp: req < 1 → max(1, req) = 1
-    (100,  "0",    200,  1),
-    # override: more splits than pixels
-    (50,   "200",  200,  1),   # 200 > 50 → auto_size(50,200)=1
-    # override: substack too small (< cap/20)
-    # dim=1000, req=30, cap=1000 → substack=33 < 50 → auto_size(1000,1000)=1
-    (1000, "30",  1000,  1),
-    # override: substack too large (> cap*3)
-    # dim=1000, req=2, cap=10 → substack=500 > 30 → auto_size(1000,10)=100
-    (1000, "2",    10,  100),
-    # explicit req=1 where single substack would exceed cap*3
-    # dim=1000, req=1, cap=200 → substack=1000 > 600 → auto_size(1000,200)=5
-    (1000, "1",   200,   5),
-])
+
+@pytest.mark.parametrize(
+    "dim_size, req, cap_val, expected_n",
+    [
+        # auto mode
+        (1000, "auto", 200, 5),  # 1000//200=5, 1000/5==200 (exact) → 5
+        (1001, "auto", 200, 6),  # 1001//200=5, 1001/5>200 → 6
+        (100, "auto", 200, 1),  # image smaller than cap → 1
+        # explicit valid request (no sanity override triggered)
+        (1000, "3", 200, 3),
+        (1000, "1", 500, 1),  # 1 substack, substack=1000 < 500*3=1500 and > 500/20=25 ✓
+        # clamp: req < 1 → max(1, req) = 1
+        (100, "0", 200, 1),
+        # override: more splits than pixels
+        (50, "200", 200, 1),  # 200 > 50 → auto_size(50,200)=1
+        # override: substack too small (< cap/20)
+        # dim=1000, req=30, cap=1000 → substack=33 < 50 → auto_size(1000,1000)=1
+        (1000, "30", 1000, 1),
+        # override: substack too large (> cap*3)
+        # dim=1000, req=2, cap=10 → substack=500 > 30 → auto_size(1000,10)=100
+        (1000, "2", 10, 100),
+        # explicit req=1 where single substack would exceed cap*3
+        # dim=1000, req=1, cap=200 → substack=1000 > 600 → auto_size(1000,200)=5
+        (1000, "1", 200, 5),
+    ],
+)
 def test_calc_num_stacks_dim(dim_size, req, cap_val, expected_n):
     n, eff = calc_num_stacks_dim(dim_size, req, 0.0, "height", uniform_cap(cap_val))
     assert n == expected_n
@@ -130,7 +155,7 @@ def test_calc_num_stacks_dim(dim_size, req, cap_val, expected_n):
 
 def test_calc_num_stacks_dim_overlap_inflates_eff_size():
     n, eff = calc_num_stacks_dim(1000, "auto", 0.1, "height", uniform_cap(200))
-    assert eff == round(1000 * 1.1)   # eff_size correctly inflated
+    assert eff == round(1000 * 1.1)  # eff_size correctly inflated
     assert n >= 1
 
 
@@ -140,6 +165,7 @@ def test_calc_num_stacks_dim_overlap_warns_on_single_stack(recwarn):
 
 
 # ── calc_num_stacks: channels never split ─────────────────────────────────────
+
 
 @pytest.mark.parametrize("channels", [1, 3, 16])
 def test_calc_num_stacks_channels_not_split(channels):
@@ -151,6 +177,7 @@ def test_calc_num_stacks_channels_not_split(channels):
 
 
 # ── end-to-end: more memory → fewer or equal substacks ───────────────────────
+
 
 def test_more_memory_fewer_substacks():
     img = Stack(5000, 5000, 100, 1)
