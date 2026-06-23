@@ -11,7 +11,7 @@ from bioio import BioImage
 from bioio_base.reader import Reader
 
 
-def _guess_reader(fpath: str | Path) -> Reader | None:
+def _guess_reader(fpath: str | Path) -> type[Reader] | None:
     ext = "".join(Path(fpath).suffixes).lower()
     try:
         if ext in [".ome.tiff", ".ome.tif"]:
