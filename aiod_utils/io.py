@@ -1,7 +1,6 @@
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
-from itertools import repeat
 from pathlib import Path
 
 import dask.array as da
