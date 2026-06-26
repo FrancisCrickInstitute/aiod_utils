@@ -46,7 +46,7 @@ jobs:
         run: |
           uv run --isolated --no-project \
             --with "$(ls dist/*.whl)" \
-            python -c "import aiod_utils; print(aiod_utils.__version__); print('Smoke OK!')"
+            python -c "import aiod_utils; print(aiod_utils.__version__); print('Smoke OK')"
 
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v4
