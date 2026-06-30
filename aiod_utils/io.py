@@ -13,29 +13,29 @@ from bioio_base.reader import Reader
 def _guess_reader(fpath: str | Path) -> type[Reader] | None:
     ext = "".join(Path(fpath).suffixes).lower()
     try:
-        if ext in [".ome.tiff", ".ome.tif"]:
+        if ext.endswith((".ome.tiff", ".ome.tif")):
             from bioio_ome_tiff import Reader as OMETiffReader
 
             return OMETiffReader
-        elif ext in [".tif", ".tiff"]:
+        elif ext.endswith(( ".tif", ".tiff" )):
             from bioio_tifffile import Reader as TiffReader
 
             return TiffReader
-        elif ext in [".zarr", ".ome.zarr"]:
+        elif ext.endswith(( ".zarr", ".ome.zarr" )):
             from bioio_ome_zarr import Reader as ZarrReader
 
             return ZarrReader
-        elif ext in [".jpg", ".jpeg", ".png"]:
+        elif ext.endswith((".jpg", ".jpeg", ".png")):
             from bioio_imageio import Reader as ImageIOReader
 
             return ImageIOReader
-        elif ext in [".nd2"]:
+        elif ext.endswith((".nd2", )):
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
     except ModuleNotFoundError as e:
         warnings.warn(
-            f"Recommended reader plugin {e.name} for file type {ext} not installed",
+            f"Recommended reader plugin {e.name} for file extension {ext} not installed",
             stacklevel=2,
         )
     return None
