@@ -9,19 +9,22 @@ import pandas as pd
 from bioio import BioImage
 from bioio_base.reader import Reader
 
+PathLike = str | Path
+ImageLike = BioImage | np.ndarray | da.Array
 
-def _guess_reader(fpath: str | Path) -> type[Reader] | None:
+
+def _guess_reader(fpath: PathLike) -> type[Reader] | None:
     ext = "".join(Path(fpath).suffixes).lower()
     try:
         if ext.endswith((".ome.tiff", ".ome.tif")):
             from bioio_ome_tiff import Reader as OMETiffReader
 
             return OMETiffReader
-        elif ext.endswith(( ".tif", ".tiff" )):
+        elif ext.endswith((".tif", ".tiff")):
             from bioio_tifffile import Reader as TiffReader
 
             return TiffReader
-        elif ext.endswith(( ".zarr", ".ome.zarr" )):
+        elif ext.endswith((".zarr", ".ome.zarr")):
             from bioio_ome_zarr import Reader as ZarrReader
 
             return ZarrReader
@@ -29,7 +32,7 @@ def _guess_reader(fpath: str | Path) -> type[Reader] | None:
             from bioio_imageio import Reader as ImageIOReader
 
             return ImageIOReader
-        elif ext.endswith((".nd2", )):
+        elif ext.endswith((".nd2",)):
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
@@ -47,10 +50,11 @@ def guess_rgba(img: BioImage):
 
 
 def load_image_data(
-    image: str | Path | BioImage,
+    image: PathLike | BioImage,
     dim_order: str = "CZYX",
     as_dask: bool = False,
     rgb_as_channels=True,
+    expand_dims=True,
     **kwargs,
 ) -> np.ndarray | da.Array:
     """
@@ -72,6 +76,11 @@ def load_image_data(
     """
     if isinstance(image, (str, Path)):
         image = load_image(image, **kwargs)
+    elif len(kwargs):
+        warnings.warn(
+            f"load_image_data() received unexpected kwargs {kwargs}, which will be ignored",
+            stacklevel=2,
+        )
     # Check the dim_order, and remap obvious aliases
     dim_order = dim_order.upper().translate(str.maketrans("DHW", "ZYX"))
     if (
@@ -83,6 +92,11 @@ def load_image_data(
         if getattr(image.dims, "C", 1) > 1:
             raise NotImplementedError("Multi-channel RGB(A) images not supported")
         dim_order = dim_order.replace("C", "S")
+    # Keep only actual dims if singleton expansion disabled
+    if not expand_dims:
+        dim_order = "".join(
+            d for d in dim_order if d in image.standard_metadata.dimensions_present
+        )
     return (
         image.get_image_dask_data(dimension_order_out=dim_order)
         if as_dask
@@ -91,7 +105,7 @@ def load_image_data(
 
 
 def load_image(
-    fpath: str | Path,
+    fpath: PathLike,
     reader: type[Reader] | None = None,
 ) -> BioImage:
     # Load the image with the requested reader
@@ -103,8 +117,8 @@ def load_image(
 
 
 def image_paths_to_csv(
-    image_paths: Sequence[str | Path] | str | Path,
-    output_csv_path: str | Path,
+    image_paths: Sequence[PathLike] | PathLike,
+    output_csv_path: PathLike,
     dimensions: Sequence[dict[str, int]] | dict[str, int] | None = None,
     dtypes: Sequence[str | np.dtype] | str | np.dtype | None = None,
     overwrite: bool = False,
