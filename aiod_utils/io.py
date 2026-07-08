@@ -147,16 +147,24 @@ def save_image(
         )
 
 
-def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order):
+def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
     if not hasattr(writers, "OMEZarrWriter"):
         raise AttributeError("OMEZarrWriter")
     if isinstance(data, BioImage):
         data = load_image_data(data)
+    # Ensure axes_names length matches data ndim; take trailing axes if dim_order is longer
+    if len(dim_order) > data.ndim:
+        # NOTE: revisit this for AIOD-315
+        dim_order = dim_order[-data.ndim:]
+    elif len(dim_order) < data.ndim:
+        raise ValueError(
+            f"dim_order '{dim_order}' has fewer dims than data shape {data.shape}"
+        )
     writers.OMEZarrWriter(
-        store=fpath,
+        store=str(fpath),
         level_shapes=data.shape,
         dtype=data.dtype,
-        axes_names=[a.lower for a in dim_order],
+        axes_names=[a.lower() for a in dim_order],
     ).write_full_volume(data)
 
 

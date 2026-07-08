@@ -19,9 +19,6 @@ from aiod_utils.io import (
         (".tif", "aiod_utils.io._save_image_ome_tiff"),
         (".ome.zarr", "aiod_utils.io._save_image_ome_zarr"),
         (".zarr", "aiod_utils.io._save_image_ome_zarr"),
-        (".png", "aiod_utils.io._save_image_imageio"),
-        (".jpg", "aiod_utils.io._save_image_imageio"),
-        (".jpeg", "aiod_utils.io._save_image_imageio"),
     ],
 )
 def test_save_image_dispatches_by_extension(tmp_path, ext, expected_helper):
@@ -29,13 +26,16 @@ def test_save_image_dispatches_by_extension(tmp_path, ext, expected_helper):
     fpath = str(tmp_path / f"test{ext}")
     with patch(expected_helper) as mock_helper:
         save_image(data, fpath)
-    mock_helper.assert_called_once_with(data, fpath)
+    if "ome_zarr" in expected_helper:
+        mock_helper.assert_called_once_with(data, fpath, "CZYX")
+    else:
+        mock_helper.assert_called_once_with(data, fpath)
 
 
 # --- Unsupported extension ---
 
 
-@pytest.mark.parametrize("ext", [".nd2", ".xyz", ".bmp"])
+@pytest.mark.parametrize("ext", [".nd2", ".xyz", ".bmp", ".png", ".jpg", ".jpeg"])
 def test_save_image_raises_for_unsupported_extension(tmp_path, ext):
     data = np.zeros((4, 4), dtype=np.uint8)
     fpath = str(tmp_path / f"test{ext}")
@@ -51,7 +51,7 @@ def test_save_image_ome_zarr_roundtrip(tmp_path):
 
     data = np.random.randint(0, 255, (1, 1, 4, 8, 8), dtype=np.uint8)
     fpath = str(tmp_path / "test.ome.zarr")
-    save_image(data, fpath)
+    save_image(data, fpath, dim_order="TCZYX")
 
     img = BioImage(fpath)
     loaded = img.get_image_data("TCZYX")
@@ -73,62 +73,46 @@ def test_save_image_ome_tiff_roundtrip(tmp_path):
     np.testing.assert_array_equal(data, loaded)
 
 
-# --- PNG roundtrip ---
+# --- OME-Zarr roundtrip with CZYX dim_order (preprocessing pipeline scenario) ---
 
 
-def test_save_image_png_roundtrip(tmp_path):
-    from skimage.io import imread
+def test_save_load_ome_zarr_czyx_roundtrip(tmp_path):
+    """Mimics preprocessing: save 4D CZYX array to OME-Zarr, reload with load_image_data."""
+    from aiod_utils.io import load_image_data
 
-    data = np.random.randint(0, 255, (32, 32), dtype=np.uint8)
-    fpath = str(tmp_path / "test.png")
-    save_image(data, fpath)
+    data = np.random.randint(0, 255, (1, 4, 64, 64), dtype=np.uint8)  # CZYX
+    fpath = str(tmp_path / "preprocessed.ome.zarr")
+    save_image(data, fpath, dim_order="CZYX")
 
-    loaded = imread(fpath)
+    # Roundtrip: load as the model scripts do
+    loaded = load_image_data(fpath, dim_order="CZYX")
     np.testing.assert_array_equal(data, loaded)
 
 
-# --- RGB roundtrips ---
+def test_save_load_ome_zarr_squeezed_roundtrip(tmp_path):
+    """Mimics preprocessing with squeezed singleton dims: save 3D ZYX, reload as CZYX."""
+    from aiod_utils.io import load_image_data
+
+    # Simulate: original CZYX was (1, 4, 64, 64), C=1 squeezed → ZYX
+    data_3d = np.random.randint(0, 255, (4, 64, 64), dtype=np.uint8)
+    fpath = str(tmp_path / "squeezed.ome.zarr")
+    save_image(data_3d, fpath, dim_order="ZYX")
+
+    # load_image_data expands missing C as singleton
+    loaded = load_image_data(fpath, dim_order="CZYX")
+    assert loaded.shape == (1, 4, 64, 64)
+    np.testing.assert_array_equal(data_3d, loaded.squeeze())
 
 
-def test_save_image_png_rgb_roundtrip(tmp_path):
-    from skimage.io import imread
+def test_save_load_ome_zarr_multichannel_roundtrip(tmp_path):
+    """3-channel z-stack saved and reloaded as CZYX."""
+    from aiod_utils.io import load_image_data
 
-    data = np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
-    fpath = str(tmp_path / "test_rgb.png")
-    save_image(data, fpath)
+    data = np.random.randint(0, 255, (3, 8, 32, 32), dtype=np.uint8)  # CZYX
+    fpath = str(tmp_path / "multi_ch.ome.zarr")
+    save_image(data, fpath, dim_order="CZYX")
 
-    loaded = imread(fpath)
-    np.testing.assert_array_equal(data, loaded)
-
-
-def test_save_image_jpeg_rgb_roundtrip(tmp_path):
-    # JPEG is lossy so only check shape is preserved
-    from skimage.io import imread
-
-    data = np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
-    fpath = str(tmp_path / "test_rgb.jpg")
-    save_image(data, fpath)
-
-    loaded = imread(fpath)
-    assert loaded.shape == data.shape
-
-
-def test_save_image_tiff_rgb_roundtrip(tmp_path):
-    # Save an RGB image as PNG first so bioio loads it with the S (samples) dimension,
-    # then save to TIFF via the BioImage path and verify pixel data is preserved.
-    from skimage.io import imsave
-
-    from aiod_utils.io import load_image, load_image_data
-
-    data = np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
-    png_path = tmp_path / "source_rgb.png"
-    imsave(str(png_path), data)
-
-    img = load_image(png_path)
-    tiff_path = str(tmp_path / "test_rgb.tiff")
-    save_image(img, tiff_path)
-
-    loaded = load_image_data(tiff_path, dim_order="YXC", rgb_as_channels=True, expand_dims=False)
+    loaded = load_image_data(fpath, dim_order="CZYX")
     np.testing.assert_array_equal(data, loaded)
 
 
@@ -164,7 +148,7 @@ def test_save_image_ome_zarr_dask_array(tmp_path):
     dask_data = da.from_array(np_data, chunks=(1, 1, 2, 4, 4))
     fpath = str(tmp_path / "test_dask.ome.zarr")
 
-    _save_image_ome_zarr(dask_data, fpath)
+    _save_image_ome_zarr(dask_data, fpath, dim_order="TCZYX")
 
     img = BioImage(fpath)
     loaded = img.get_image_data("TCZYX")
