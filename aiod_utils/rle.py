@@ -122,6 +122,11 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
     scales with the area scanned, and dense masks can have 100+ instances per slice.
     Encoding every one of them against the full H*W frame dominates encode time
     even though any single instance typically occupies a small fraction of it.
+
+    Assumes labels are small, densely-packed positive integers (as produced by
+    connected-components/enumeration schemes, e.g. scipy.ndimage.label) --
+    find_objects scales with the max label value, so sparse/huge label IDs
+    would be inefficient here.
     """
     out = []
     # We need to loop over each slice
