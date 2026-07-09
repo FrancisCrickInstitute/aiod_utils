@@ -73,13 +73,22 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     # Then find all the indices where we have a change
     change_indices = np.argwhere(diff)
 
+    # np.argwhere on a 2D array returns rows already sorted by batch index
+    # then column index, so split once into per-batch-element groups instead
+    # of re-scanning the whole array with a fresh boolean mask for every `i`
+    # (that was O(b * total_changes); this is O(total_changes)). Matters most
+    # for instance masks, where b is the per-slice instance count.
+    row, col = change_indices[:, 0], change_indices[:, 1]
+    boundaries = np.searchsorted(row, np.arange(b + 1))
+    groups = np.split(col, boundaries[1:-1])
+
     # Additional metadata
     metadata = {}
 
     # Encode run length
     out = []
     for i in range(b):
-        cur_idxs = change_indices[change_indices[:, 0] == i, 1]
+        cur_idxs = groups[i]
         cur_idxs = np.concatenate(
             [
                 np.array([0], dtype=cur_idxs.dtype),
