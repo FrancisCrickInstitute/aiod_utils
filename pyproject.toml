@@ -55,7 +55,10 @@ source = "https://github.com/FrancisCrickInstitute/aiod_utils"
 bioformats = ["bioio-bioformats"]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "line-profiler>=5.0.2",
+    "pytest",
+]
 
 
 [build-system]
