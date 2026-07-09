@@ -315,3 +315,68 @@ def test_consistent_shape(mask, request):
     decoded_mask, _ = decode(rle, mask_type="binary")
     # Check that the decoded mask has the same shape as the original mask
     assert decoded_mask.shape == mask.shape
+
+
+# ---- check_mask_type inference edge cases ----
+
+
+def test_check_mask_type_binary_zero_one():
+    from aiod_utils.rle import check_mask_type
+
+    mask = np.array([[0, 1, 1], [1, 0, 0]], dtype=np.uint8)
+    assert check_mask_type(mask) == "binary"
+
+
+# ---- Scale / sparsity regression coverage ----
+# The fixtures above are all tiny (3x3) hand-built arrays. They don't exercise
+# instances confined to a subset of Z-slices, fully empty slices, or enough
+# volume for run-length math bugs to surface -- add coverage for those here
+# as a safety net for the encode/decode performance work.
+
+
+@pytest.fixture
+def sparse_instance_3d_mask():
+    """Instances confined to a subset of slices, including one fully empty slice."""
+    mask = np.zeros((4, 5, 5), dtype=np.uint8)
+    mask[0, 1:3, 1:3] = 1
+    # slice 1 intentionally left all-background
+    mask[2, 0:2, 0:2] = 2
+    mask[2, 3:5, 3:5] = 3
+    mask[3, 2:4, 2:4] = 1  # instance 1 reappears in a later, non-contiguous slice
+    return mask
+
+
+def test_sparse_in_z_instance_round_trip(sparse_instance_3d_mask):
+    from aiod_utils.rle import decode, encode
+
+    rle = encode(sparse_instance_3d_mask, mask_type="instance")
+    decoded_mask, _ = decode(rle, mask_type="instance")
+    assert np.array_equal(
+        sparse_instance_3d_mask, decoded_mask.astype(sparse_instance_3d_mask.dtype)
+    )
+
+
+def test_large_instance_mask_round_trip():
+    """Denser, larger instance mask with uneven per-slice instance membership,
+    mimicking real (SAM-like) data -- a regression guard for run-length math
+    bugs that only surface at scale, not caught by the small fixtures above."""
+    from aiod_utils.rle import decode, encode
+
+    rng = np.random.default_rng(123)
+    shape = (24, 64, 64)
+    mask = np.zeros(shape, dtype=np.uint16)
+    n_instances = 40
+    ys, xs = np.ogrid[: shape[1], : shape[2]]
+    for instance_id in range(1, n_instances + 1):
+        # Each instance only touches a handful of slices, like real data does
+        n_slices_for_instance = rng.integers(1, 6)
+        slice_idxs = rng.choice(shape[0], size=n_slices_for_instance, replace=False)
+        for z in slice_idxs:
+            cy, cx = rng.integers(0, shape[1]), rng.integers(0, shape[2])
+            radius = rng.integers(2, 6)
+            circle = (ys - cy) ** 2 + (xs - cx) ** 2 <= radius**2
+            mask[z][circle] = instance_id
+
+    rle = encode(mask, mask_type="instance")
+    decoded_mask, _ = decode(rle, mask_type="instance")
+    assert np.array_equal(mask, decoded_mask.astype(mask.dtype))
