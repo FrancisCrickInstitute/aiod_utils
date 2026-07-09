@@ -43,7 +43,8 @@ dependencies = [
     "opencv-python",
     "scikit-image>0.20",
     "pyyaml",
-    "pandas<2.3.0"
+    "pandas<2.3.0",
+    "scipy>=1.17.1",
 ]
 
 [project.urls]
