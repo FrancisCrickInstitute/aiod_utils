@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy import ndimage
 
 from aiod_utils.io import reduce_dtype
 
@@ -109,34 +110,44 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     return out
 
 
-# @line_profiler.profile
 def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
     """
-    Note that this is much slower than the binary encoding.
+    Encode instances masks into RLE format.
+
     This needs to be used for models like SAM, where instance masks overlap.
-    For other instance masks, binary encoding then connected components is likely faster.
+    Otherwise, binary encoding then connected components is likely faster and simpler.
+
+    Each instance is encoded within its own bounding box rather than against
+    the full slice. Previously runtime was dominated by np.argwhere, which
+    scales with the area scanned, and dense masks can have 100+ instances per slice.
+    Encoding every one of them against the full H*W frame dominates encode time
+    even though any single instance typically occupies a small fraction of it.
     """
     out = []
-    #
     # We need to loop over each slice
     for idx in range(mask.shape[0]):
         # Get the mask for this slice
         mask_slice = mask[idx]
-        # Get the unique instances
-        instances = np.unique(mask_slice)
-        # Remove the background
-        instances = instances[instances != 0]
-        # Handle the case where there are no instances
-        if len(instances) == 0:
-            mask_batch = np.zeros_like(mask_slice, dtype=bool)[np.newaxis, ...]
-            instances = np.array([0], dtype=np.uint8)
-        else:
-            # Convert into a batch of binarised masks for each instance
-            # `instances` is already the unique, sorted, non-background labels
-            mask_batch = mask_slice[np.newaxis, ...] == instances[:, np.newaxis, np.newaxis]
-        # Encode the binary masks
-        # Add the instance index to the metadata for later decoding
-        encoded_masks = _encode_binary(mask_batch, idx=instances)
+        h, w = mask_slice.shape
+        # Bounding box per instance label, in one call
+        bboxes = ndimage.find_objects(mask_slice)
+        encoded_masks = []
+        for instance_id, bbox in enumerate(bboxes, start=1):
+            if bbox is None:
+                # This label isn't present in this slice
+                continue
+            y_slice, x_slice = bbox
+            local_mask = mask_slice[bbox] == instance_id
+            entry = _encode_binary(local_mask[np.newaxis, ...], idx=[instance_id])[0]
+            entry["offset"] = [y_slice.start, x_slice.start]
+            entry["full_size"] = [h, w]
+            encoded_masks.append(entry)
+        if not encoded_masks:
+            # No instances in this slice
+            encoded_masks = _encode_binary(
+                np.zeros_like(mask_slice, dtype=bool)[np.newaxis, ...],
+                idx=np.array([0], dtype=np.uint8),
+            )
         # Store the encoded masks
         out.append(encoded_masks)
     return out
@@ -187,6 +198,14 @@ def _decode_binary(rle: list[dict]) -> np.ndarray:
             parity ^= True
         # Reshape and put in C order (encoded in Fortran order)
         mask = mask.reshape(w, h).transpose()
+        if "offset" in encoded_mask:
+            # Encoded within its own bounding box (see _encode_instance);
+            # place it back at the right position in the full frame.
+            full_h, full_w = encoded_mask["full_size"]
+            y0, x0 = encoded_mask["offset"]
+            full_mask = np.zeros((full_h, full_w), dtype=bool)
+            full_mask[y0 : y0 + h, x0 : x0 + w] = mask
+            mask = full_mask
         res.append(mask)
     return np.stack(res, axis=0, dtype=bool)
 

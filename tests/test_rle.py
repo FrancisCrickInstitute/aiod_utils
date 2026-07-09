@@ -380,3 +380,21 @@ def test_large_instance_mask_round_trip():
     rle = encode(mask, mask_type="instance")
     decoded_mask, _ = decode(rle, mask_type="instance")
     assert np.array_equal(mask, decoded_mask.astype(mask.dtype))
+
+
+def test_decode_backward_compatible_with_pre_bbox_instance_format():
+    """Old-format instance RLE entries (no 'offset'/'full_size', encoded
+    against the full frame -- how _encode_instance worked before switching
+    to per-instance bounding boxes) must still decode correctly."""
+    from aiod_utils.rle import _encode_binary, decode
+
+    mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
+    instances = np.array([1, 2, 3], dtype=np.uint16)
+    # Reproduce the pre-bbox _encode_instance behaviour directly: each
+    # instance encoded against the *full* frame, no offset/full_size keys.
+    mask_batch = mask[np.newaxis, ...] == instances[:, np.newaxis, np.newaxis]
+    old_format_slice = _encode_binary(mask_batch, idx=instances)
+    rle = [old_format_slice, {"metadata": {"mask_type": "instance"}}]
+
+    decoded_mask, _ = decode(rle, mask_type="instance")
+    assert np.array_equal(mask, decoded_mask.astype(mask.dtype))
