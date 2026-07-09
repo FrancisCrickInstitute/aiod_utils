@@ -41,7 +41,6 @@ def encode(
         mask = mask.astype(bool)
         res = _encode_binary(mask)
     elif mask_type == "instance":
-        mask = mask.astype(np.int64)
         res = _encode_instance(mask, **metadata)
     # Store mask_type in metadata for self-documentation
     metadata["mask_type"] = mask_type
@@ -124,10 +123,8 @@ def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
             instances = np.array([0], dtype=np.uint8)
         else:
             # Convert into a batch of binarised masks for each instance
-            mask_batch = (
-                mask_slice[np.newaxis, ...]
-                == np.unique(instances)[:, np.newaxis, np.newaxis]
-            )
+            # `instances` is already the unique, sorted, non-background labels
+            mask_batch = mask_slice[np.newaxis, ...] == instances[:, np.newaxis, np.newaxis]
         # Encode the binary masks
         # Add the instance index to the metadata for later decoding
         encoded_masks = _encode_binary(mask_batch, idx=instances)
