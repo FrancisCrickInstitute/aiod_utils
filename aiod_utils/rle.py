@@ -200,6 +200,9 @@ def _decode_run_length(size: list[int], counts: list[int]) -> np.ndarray:
         idx += count
         # This acts as a toggle
         parity ^= True
+    if idx != h * w:
+        # Check if counts are malformed and fail fast (again, only matters for masks outside AIoD)
+        raise ValueError(f"Malformed RLE counts: expected total length {h * w}, got {idx}")
     # Reshape and put in C order (encoded in Fortran order)
     return mask.reshape(w, h).transpose()
 
