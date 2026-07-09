@@ -183,30 +183,26 @@ def check_rle_type(rle: list[dict]) -> str:
     return mask_type
 
 
-def _decode_binary(rle: list[dict]) -> np.ndarray:
+def _decode_run_length(size: list[int], counts: list[int]) -> np.ndarray:
+    """Decode one RLE entry's counts into its own (possibly bbox-local) boolean mask."""
     # https://github.com/facebookresearch/sam2/blob/c2ec8e14a185632b0a5d8b161928ceb50197eddc/sam2/utils/amg.py#L140
-    res = []
-    for encoded_mask in rle:
-        h, w = encoded_mask["size"]
-        mask = np.empty(h * w, dtype=bool)
-        idx = 0
-        parity = False
-        for count in encoded_mask["counts"]:
-            mask[idx : idx + count] = parity
-            idx += count
-            # This acts as a toggle
-            parity ^= True
-        # Reshape and put in C order (encoded in Fortran order)
-        mask = mask.reshape(w, h).transpose()
-        if "offset" in encoded_mask:
-            # Encoded within its own bounding box (see _encode_instance);
-            # place it back at the right position in the full frame.
-            full_h, full_w = encoded_mask["full_size"]
-            y0, x0 = encoded_mask["offset"]
-            full_mask = np.zeros((full_h, full_w), dtype=bool)
-            full_mask[y0 : y0 + h, x0 : x0 + w] = mask
-            mask = full_mask
-        res.append(mask)
+    h, w = size
+    mask = np.empty(h * w, dtype=bool)
+    idx = 0
+    parity = False
+    for count in counts:
+        mask[idx : idx + count] = parity
+        idx += count
+        # This acts as a toggle
+        parity ^= True
+    # Reshape and put in C order (encoded in Fortran order)
+    return mask.reshape(w, h).transpose()
+
+
+def _decode_binary(rle: list[dict]) -> np.ndarray:
+    # Used directly for the top-level "binary" mask_type, where each entry is
+    # always a full slice (never bbox-cropped), so no offset placement here.
+    res = [_decode_run_length(entry["size"], entry["counts"]) for entry in rle]
     return np.stack(res, axis=0, dtype=bool)
 
 
@@ -215,16 +211,26 @@ def _decode_instance(rle) -> np.ndarray:
     out = []
     # rle_slice is a list of dictionaries for each instance
     for rle_slice in rle:
-        # Each dictionary contains the size and counts for the RLE, as well as any metadata
-        # NOTE: Could insert the idx at each but the binary version is quicker
-        decoded_slice = _decode_binary(rle_slice)
-        # Convert stack of binary masks for each instance into a single instance mask
-        # Get the instance indices to multiply by the binary masks
-        instance_indices = np.array([r["idx"] for r in rle_slice], dtype=np.uint16)
-        # Multiply the binary masks by the instance indices and sum to flatten
-        decoded_slice = np.einsum("ijk,i->jk", decoded_slice, instance_indices)
-        # Append the decoded slice
-        out.append(decoded_slice)
+        # Full-frame size: new-format (bbox-cropped) entries carry it in
+        # "full_size"; old-format entries (pre bounding-box encode) cover the
+        # full frame directly in "size". Every entry in a slice shares one
+        # full frame, so the first entry's is enough; _encode_instance always
+        # produces at least one entry per slice, so rle_slice is never empty.
+        first = rle_slice[0]
+        h, w = first.get("full_size", first["size"])
+        canvas = np.zeros((h, w), dtype=np.uint16)
+        for entry in rle_slice:
+            local_mask = _decode_run_length(entry["size"], entry["counts"])
+            y0, x0 = entry.get("offset", (0, 0))
+            lh, lw = entry["size"]
+            # Write each instance directly into its own region of the shared
+            # canvas instead of building a (K, H, W) stack to sum -- avoids
+            # ever materializing full-frame arrays per instance. Genuinely
+            # overlapping instances resolve as "last entry in the list wins"
+            # here, rather than the old sum-based approach, which never
+            # produced a correct value at overlaps anyway.
+            canvas[y0 : y0 + lh, x0 : x0 + lw][local_mask] = entry["idx"]
+        out.append(canvas)
     # Reconstruct the full mask array
     return np.stack(out)
 

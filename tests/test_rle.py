@@ -385,7 +385,10 @@ def test_large_instance_mask_round_trip():
 def test_decode_backward_compatible_with_pre_bbox_instance_format():
     """Old-format instance RLE entries (no 'offset'/'full_size', encoded
     against the full frame -- how _encode_instance worked before switching
-    to per-instance bounding boxes) must still decode correctly."""
+    to per-instance bounding boxes) must still decode correctly. The
+    offset-defaulting/canvas-size logic that makes this work lives in
+    _decode_instance (not _decode_binary, which is only used directly for
+    the top-level "binary" mask_type)."""
     from aiod_utils.rle import _encode_binary, decode
 
     mask = np.array([[0, 1, 1], [3, 0, 0], [0, 2, 0]], dtype=np.uint16)
@@ -398,3 +401,73 @@ def test_decode_backward_compatible_with_pre_bbox_instance_format():
 
     decoded_mask, _ = decode(rle, mask_type="instance")
     assert np.array_equal(mask, decoded_mask.astype(mask.dtype))
+
+
+# ---- Overlapping-instance decode semantics ----
+# _encode_instance can't itself produce overlap (one dense label array in,
+# one instance per pixel), so these build the RLE by hand -- pinning down
+# _decode_instance's "last entry in the list wins" behaviour at genuinely
+# overlapping pixels, which replaced the old (never-correct) sum-based
+# reconstruction. Real use case per _encode_instance's own docstring: SAM
+# masks are allowed to overlap.
+
+
+def test_decode_overlapping_instances_last_write_wins():
+    """Two full-frame (old-format) instances sharing a pixel: the later
+    entry in the list wins at the shared pixel; non-overlap pixels are
+    unaffected."""
+    from aiod_utils.rle import _encode_binary, decode
+
+    mask_a = np.array([[True, False, False], [False, True, False], [False, False, False]])
+    mask_b = np.array([[False, False, False], [False, True, False], [False, False, True]])
+    entry_a = _encode_binary(mask_a[np.newaxis, ...], idx=[1])[0]
+    entry_b = _encode_binary(mask_b[np.newaxis, ...], idx=[2])[0]
+
+    rle = [[entry_a, entry_b], {"metadata": {"mask_type": "instance"}}]
+    decoded_mask, _ = decode(rle, mask_type="instance")
+
+    assert decoded_mask[0, 0] == 1
+    assert decoded_mask[1, 1] == 2  # shared pixel: entry_b is last, so it wins
+    assert decoded_mask[2, 2] == 2
+    assert decoded_mask[0, 1] == 0
+
+
+def test_decode_overlapping_bbox_instances_last_write_wins():
+    """Same semantics, but for the new bbox-cropped format with real
+    (nonzero) offsets, to exercise the canvas-write path directly."""
+    from aiod_utils.rle import _encode_binary, decode
+
+    local_block = np.ones((2, 2), dtype=bool)
+    entry_a = _encode_binary(local_block[np.newaxis, ...], idx=[1])[0]
+    entry_a["offset"] = [0, 0]
+    entry_a["full_size"] = [4, 4]
+    entry_b = _encode_binary(local_block[np.newaxis, ...], idx=[2])[0]
+    entry_b["offset"] = [1, 1]
+    entry_b["full_size"] = [4, 4]
+
+    rle = [[entry_a, entry_b], {"metadata": {"mask_type": "instance"}}]
+    decoded_mask, _ = decode(rle, mask_type="instance")
+
+    assert decoded_mask[0, 0] == 1
+    assert decoded_mask[0, 1] == 1
+    assert decoded_mask[1, 0] == 1
+    assert decoded_mask[1, 1] == 2  # overlap: entry_b (bbox rows/cols 1-2) is last, wins
+    assert decoded_mask[2, 2] == 2
+    assert decoded_mask[0, 2] == 0
+    assert decoded_mask[3, 3] == 0
+
+
+def test_decode_three_way_overlap_last_write_wins():
+    """3+-way overlap at one pixel still can't round-trip losslessly (only
+    one idx slot per pixel) -- confirm only the last-in-list idx survives."""
+    from aiod_utils.rle import _encode_binary, decode
+
+    shared_pixel_mask = np.zeros((3, 3), dtype=bool)
+    shared_pixel_mask[1, 1] = True
+    entries = [_encode_binary(shared_pixel_mask[np.newaxis, ...], idx=[i])[0] for i in (5, 6, 7)]
+
+    rle = [entries, {"metadata": {"mask_type": "instance"}}]
+    decoded_mask, _ = decode(rle, mask_type="instance")
+
+    assert decoded_mask[1, 1] == 7
+    assert np.count_nonzero(decoded_mask) == 1
