@@ -22,7 +22,7 @@ from aiod_utils.io import (
     ],
 )
 def test_save_image_dispatches_by_extension(tmp_path, ext, expected_helper):
-    data = np.zeros((4, 4), dtype=np.uint8)
+    data = np.zeros((4, 8), dtype=np.uint8)
     fpath = str(tmp_path / f"test{ext}")
     with patch(expected_helper) as mock_helper:
         save_image(data, fpath)
@@ -37,7 +37,7 @@ def test_save_image_dispatches_by_extension(tmp_path, ext, expected_helper):
 
 @pytest.mark.parametrize("ext", [".nd2", ".xyz", ".bmp", ".png", ".jpg", ".jpeg"])
 def test_save_image_raises_for_unsupported_extension(tmp_path, ext):
-    data = np.zeros((4, 4), dtype=np.uint8)
+    data = np.zeros((4, 8), dtype=np.uint8)
     fpath = str(tmp_path / f"test{ext}")
     with pytest.raises(ValueError, match="Unsupported extension"):
         save_image(data, fpath)
@@ -49,7 +49,7 @@ def test_save_image_raises_for_unsupported_extension(tmp_path, ext):
 def test_save_image_ome_zarr_roundtrip(tmp_path):
     from bioio import BioImage
 
-    data = np.random.randint(0, 255, (1, 1, 4, 8, 8), dtype=np.uint8)
+    data = np.random.randint(0, 255, (1, 1, 4, 8, 16), dtype=np.uint8)
     fpath = str(tmp_path / "test.ome.zarr")
     save_image(data, fpath, dim_order="TCZYX")
 
@@ -64,7 +64,7 @@ def test_save_image_ome_zarr_roundtrip(tmp_path):
 def test_save_image_ome_tiff_roundtrip(tmp_path):
     from bioio import BioImage
 
-    data = np.random.randint(0, 255, (1, 1, 4, 8, 8), dtype=np.uint8)
+    data = np.random.randint(0, 255, (1, 1, 4, 8, 16), dtype=np.uint8)
     fpath = str(tmp_path / "test.ome.tiff")
     save_image(data, fpath)
 
@@ -80,7 +80,7 @@ def test_save_load_ome_zarr_czyx_roundtrip(tmp_path):
     """Mimics preprocessing: save 4D CZYX array to OME-Zarr, reload with load_image_data."""
     from aiod_utils.io import load_image_data
 
-    data = np.random.randint(0, 255, (1, 4, 64, 64), dtype=np.uint8)  # CZYX
+    data = np.random.randint(0, 255, (1, 4, 32, 64), dtype=np.uint8)  # CZYX
     fpath = str(tmp_path / "preprocessed.ome.zarr")
     save_image(data, fpath, dim_order="CZYX")
 
@@ -94,13 +94,13 @@ def test_save_load_ome_zarr_squeezed_roundtrip(tmp_path):
     from aiod_utils.io import load_image_data
 
     # Simulate: original CZYX was (1, 4, 64, 64), C=1 squeezed → ZYX
-    data_3d = np.random.randint(0, 255, (4, 64, 64), dtype=np.uint8)
+    data_3d = np.random.randint(0, 255, (4, 32, 64), dtype=np.uint8)
     fpath = str(tmp_path / "squeezed.ome.zarr")
     save_image(data_3d, fpath, dim_order="ZYX")
 
     # load_image_data expands missing C as singleton
     loaded = load_image_data(fpath, dim_order="CZYX")
-    assert loaded.shape == (1, 4, 64, 64)
+    assert loaded.shape == (1, 4, 32, 64)
     np.testing.assert_array_equal(data_3d, loaded.squeeze())
 
 
@@ -108,7 +108,7 @@ def test_save_load_ome_zarr_multichannel_roundtrip(tmp_path):
     """3-channel z-stack saved and reloaded as CZYX."""
     from aiod_utils.io import load_image_data
 
-    data = np.random.randint(0, 255, (3, 8, 32, 32), dtype=np.uint8)  # CZYX
+    data = np.random.randint(0, 255, (3, 8, 32, 64), dtype=np.uint8)  # CZYX
     fpath = str(tmp_path / "multi_ch.ome.zarr")
     save_image(data, fpath, dim_order="CZYX")
 
@@ -122,7 +122,7 @@ def test_save_load_ome_zarr_multichannel_roundtrip(tmp_path):
 def test_save_image_fallback_on_missing_writer(tmp_path):
     from pathlib import Path
 
-    data = np.random.randint(0, 255, (32, 32), dtype=np.uint8)
+    data = np.random.randint(0, 255, (32, 64), dtype=np.uint8)
     fpath = str(tmp_path / "test.tiff")
 
     with patch(
@@ -144,7 +144,7 @@ def test_save_image_fallback_on_missing_writer(tmp_path):
 def test_save_image_ome_zarr_dask_array(tmp_path):
     from bioio import BioImage
 
-    np_data = np.random.randint(0, 255, (1, 1, 4, 8, 8), dtype=np.uint8)
+    np_data = np.random.randint(0, 255, (1, 1, 4, 8, 16), dtype=np.uint8)
     dask_data = da.from_array(np_data, chunks=(1, 1, 2, 4, 4))
     fpath = str(tmp_path / "test_dask.ome.zarr")
 
