@@ -97,7 +97,7 @@ requires-dist = [
     { name = "pyyaml" },
     { name = "scikit-image", specifier = ">0.20" },
     { name = "tifffile" },
-    { name = "zarr", specifier = ">=3" },
+    { name = "zarr", specifier = ">=3.1.5" },
 ]
 provides-extras = ["bioformats"]
 
