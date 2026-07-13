@@ -1,12 +1,11 @@
+from pathlib import Path
 from unittest.mock import patch
 
 import dask.array as da
 import numpy as np
 import pytest
-from aiod_utils.io import (
-    _save_image_ome_zarr,
-    save_image,
-)
+
+from aiod_utils.io import _save_image_ome_zarr, load_image, load_image_data, save_image
 
 # --- Dispatch tests ---
 
@@ -29,7 +28,7 @@ def test_save_image_dispatches_by_extension(tmp_path, ext, expected_helper):
     if "ome_zarr" in expected_helper:
         mock_helper.assert_called_once_with(data, fpath, "CZYX")
     else:
-        mock_helper.assert_called_once_with(data, fpath)
+        mock_helper.assert_called_once_with(data, fpath, "CZYX")
 
 
 # --- Unsupported extension ---
@@ -66,7 +65,7 @@ def test_save_image_ome_tiff_roundtrip(tmp_path):
 
     data = np.random.randint(0, 255, (1, 1, 4, 8, 16), dtype=np.uint8)
     fpath = str(tmp_path / "test.ome.tiff")
-    save_image(data, fpath)
+    save_image(data, fpath, "TCZYX")
 
     img = BioImage(fpath)
     loaded = img.get_image_data("TCZYX")
@@ -116,12 +115,30 @@ def test_save_load_ome_zarr_multichannel_roundtrip(tmp_path):
     np.testing.assert_array_equal(data, loaded)
 
 
-# --- AttributeError fallback via skimage ---
+# --- AttributeError fallback via tifffile ---
 
 
-def test_save_image_fallback_on_missing_writer(tmp_path):
-    from pathlib import Path
+@pytest.mark.parametrize("dim_order", ["CZYX", "ZYX", "ZXY"])
+def test_save_image_fallback_raises_on_mismatched_dims(tmp_path, dim_order):
+    """Fallback to tifffile raises when dim_order doesn't match data ndim."""
+    data = np.random.randint(0, 255, (32, 64), dtype=np.uint8)
+    fpath = str(tmp_path / "test.tiff")
 
+    with (
+        patch(
+            "aiod_utils.io._save_image_ome_tiff",
+            side_effect=AttributeError("OmeTiffWriter"),
+        ),
+        pytest.raises(NotImplementedError),
+    ):
+        save_image(data, fpath, dim_order=dim_order)
+
+    assert not Path(fpath).exists()
+
+
+@pytest.mark.parametrize("dim_order", ["XY", "YX"])
+def test_save_image_fallback_roundtrip(tmp_path, dim_order):
+    """Fallback to tifffile succeeds and roundtrips when dims match."""
     data = np.random.randint(0, 255, (32, 64), dtype=np.uint8)
     fpath = str(tmp_path / "test.tiff")
 
@@ -129,13 +146,18 @@ def test_save_image_fallback_on_missing_writer(tmp_path):
         "aiod_utils.io._save_image_ome_tiff",
         side_effect=AttributeError("OmeTiffWriter"),
     ):
-        save_image(data, fpath)
+        save_image(data, fpath, dim_order=dim_order)
 
     assert Path(fpath).exists()
-    from skimage.io import imread
+    from tifffile import imread
 
     loaded = imread(fpath)
     np.testing.assert_array_equal(data, loaded)
+
+    loaded = load_image(fpath)
+    np.testing.assert_array_equal(
+        data, load_image_data(loaded, expand_dims=False, dim_order=dim_order)
+    )
 
 
 # --- _save_image_ome_zarr with dask array ---

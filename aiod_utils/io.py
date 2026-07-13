@@ -7,6 +7,7 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 from bioio import BioImage, writers
+from bioio_base.exceptions import InvalidDimensionOrderingError
 from bioio_base.reader import Reader
 
 PathLike = str | Path
@@ -122,42 +123,50 @@ def save_image(
     dim_order: str = "CZYX",
 ):
     ext = "".join(Path(fpath).suffixes).lower()
-    try:
-        if ext.endswith((".ome.tiff", ".ome.tif", ".tif", ".tiff")):
-            _save_image_ome_tiff(data, fpath)
-        elif ext.endswith((".zarr", ".ome.zarr")):
-            _save_image_ome_zarr(data, fpath, dim_order)
-        else:
-            raise ValueError(f"Unsupported extension: {ext}")
-    except AttributeError:
-        # Fall back on skimage.io for supported extension but missing writer
-        from bioio_base.dimensions import DEFAULT_DIMENSION_ORDER_WITH_SAMPLES
-        from skimage.io import imsave
+    if ext.endswith((".ome.tiff", ".ome.tif", ".tif", ".tiff")):
+        try:
+            _save_image_ome_tiff(data, fpath, dim_order)
+        except AttributeError as exc:
+            # Fall back on tifffile for missing writer
+            from tifffile import imwrite
 
-        imsave(
-            fpath,
-            load_image_data(
-                data,
-                dim_order=DEFAULT_DIMENSION_ORDER_WITH_SAMPLES,
-                as_dask=False,
-                expand_dims=False,
+            data = (
+                load_image_data(
+                    data,
+                    dim_order=dim_order,
+                    as_dask=False,
+                )
+                if isinstance(data, (BioImage, Path, str))
+                else data
             )
-            if isinstance(data, BioImage)
-            else data,
-        )
+            # TODO AIOD-315: can't deal with this scenario until load_image_data returns dim string
+            if len(dim_order) != len(data.shape):
+                raise NotImplementedError(
+                    "Cannot use tifffile to save image with unspecified dimensions"
+                ) from exc
+            imwrite(fpath, data, metadata={"axes": dim_order})
+    elif ext.endswith((".zarr", ".ome.zarr")):
+        try:
+            _save_image_ome_zarr(data, fpath, dim_order)
+        except AttributeError as exc:
+            raise NotImplementedError(
+                "Cannot save to zarr without bioio-zarr installed."
+            ) from exc
+    else:
+        raise ValueError(f"Unsupported extension: {ext}")
 
 
 def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
     if not hasattr(writers, "OMEZarrWriter"):
         raise AttributeError("OMEZarrWriter")
     if isinstance(data, BioImage):
-        data = load_image_data(data)
+        data = load_image_data(data, dim_order=dim_order)
     # Ensure axes_names length matches data ndim; take trailing axes if dim_order is longer
     if len(dim_order) > data.ndim:
         # NOTE: revisit this for AIOD-315
-        dim_order = dim_order[-data.ndim:]
+        dim_order = dim_order[-data.ndim :]
     elif len(dim_order) < data.ndim:
-        raise ValueError(
+        raise InvalidDimensionOrderingError(
             f"dim_order '{dim_order}' has fewer dims than data shape {data.shape}"
         )
     writers.OMEZarrWriter(
@@ -168,13 +177,13 @@ def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
     ).write_full_volume(data)
 
 
-def _save_image_ome_tiff(data: ImageLike, fpath: PathLike):
+def _save_image_ome_tiff(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
     if not hasattr(writers, "OmeTiffWriter"):
         raise AttributeError("OmeTiffWriter")
     if isinstance(data, BioImage):
-        data.save(fpath)
+        data.save(fpath, dim_order=dim_order)
     else:
-        writers.OmeTiffWriter.save(data, fpath)
+        writers.OmeTiffWriter.save(data, fpath, dim_order=dim_order)
 
 
 def image_paths_to_csv(
