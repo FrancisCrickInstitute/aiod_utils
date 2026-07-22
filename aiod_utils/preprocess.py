@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import warnings
@@ -464,6 +465,15 @@ def get_params_str(
         else:
             res.append(str(prep_inst))
     return "_".join(res)
+
+
+def hash_params_str(params_str: str) -> str:
+    """Short, deterministic id for a preprocessing-params string
+
+    Same 8-char MD5 truncation convention used elsewhere
+    Need this central so it can be used in front- and back-ends!
+    """
+    return hashlib.md5(params_str.encode()).hexdigest()[:8]
 
 
 def get_downsample_factor(
