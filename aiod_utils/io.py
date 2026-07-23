@@ -87,6 +87,37 @@ def get_image_id(img_path: str | Path) -> str:
     )
 
 
+def get_mask_name(
+    run_hash: str,
+    image_id: str | Path | None = None,
+    image_path: str | Path | None = None,
+    prep_hash: str | None = None,
+) -> str:
+    """
+    Canonical mask filename stem, so that any consumer needing to predict a
+    Segment-Flow mask filename before it exists (e.g. aiod_napari's file
+    watcher) can call this.
+
+    Deliberately opaque rather than human-readable: task/model/model_type are
+    dropped, since resolvedParamHash (run_hash) already reflects them for
+    uniqueness purposes, and they're already visible in the containing
+    directory name (mask_output_dir includes model/model_type). Avoiding them
+    here also avoids ever needing model-manifest slug resolution just to
+    predict a filename.
+
+    NOTE: Segment-Flow's equivalent (getMaskName in main.nf) has to compute
+    this independently. Nextflow's process `output:` declarations need the
+    filename pattern known before the script runs, which a Python func can't
+    provide. If this format ever changes, update both places!
+    """
+    if image_id is None:
+        if image_path is None:
+            raise ValueError("Either image_id or image_path must be provided")
+        image_id = get_image_id(image_path)
+    prep_suffix = f"_{prep_hash}" if prep_hash else ""
+    return f"{image_id}{prep_suffix}_masks_{run_hash}"
+
+
 def guess_rgba(img: BioImage):
     # https://github.com/bioio-devs/bioio/issues/174#issuecomment-3843003521
     return "S" in img.dims.order
