@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy import ndimage
 
 from aiod_utils.io import reduce_dtype
 
@@ -41,7 +42,6 @@ def encode(
         mask = mask.astype(bool)
         res = _encode_binary(mask)
     elif mask_type == "instance":
-        mask = mask.astype(np.int64)
         res = _encode_instance(mask, **metadata)
     # Store mask_type in metadata for self-documentation
     metadata["mask_type"] = mask_type
@@ -74,13 +74,22 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     # Then find all the indices where we have a change
     change_indices = np.argwhere(diff)
 
+    # np.argwhere on a 2D array returns rows already sorted by batch index
+    # then column index, so split once into per-batch-element groups instead
+    # of re-scanning the whole array with a fresh boolean mask for every `i`
+    # (that was O(b * total_changes); this is O(total_changes)). Matters most
+    # for instance masks, where b is the per-slice instance count.
+    row, col = change_indices[:, 0], change_indices[:, 1]
+    boundaries = np.searchsorted(row, np.arange(b + 1))
+    groups = np.split(col, boundaries[1:-1])
+
     # Additional metadata
     metadata = {}
 
     # Encode run length
     out = []
     for i in range(b):
-        cur_idxs = change_indices[change_indices[:, 0] == i, 1]
+        cur_idxs = groups[i]
         cur_idxs = np.concatenate(
             [
                 np.array([0], dtype=cur_idxs.dtype),
@@ -101,36 +110,49 @@ def _encode_binary(mask, **kwargs) -> list[dict]:
     return out
 
 
-# @line_profiler.profile
 def _encode_instance(mask: np.ndarray, **kwargs) -> list[dict]:
     """
-    Note that this is much slower than the binary encoding.
+    Encode instances masks into RLE format.
+
     This needs to be used for models like SAM, where instance masks overlap.
-    For other instance masks, binary encoding then connected components is likely faster.
+    Otherwise, binary encoding then connected components is likely faster and simpler.
+
+    Each instance is encoded within its own bounding box rather than against
+    the full slice. Previously runtime was dominated by np.argwhere, which
+    scales with the area scanned, and dense masks can have 100+ instances per slice.
+    Encoding every one of them against the full H*W frame dominates encode time
+    even though any single instance typically occupies a small fraction of it.
+
+    Assumes labels are small, densely-packed positive integers (as produced by
+    connected-components/enumeration schemes, e.g. scipy.ndimage.label) --
+    find_objects scales with the max label value, so sparse/huge label IDs
+    would be inefficient here.
     """
     out = []
-    #
     # We need to loop over each slice
     for idx in range(mask.shape[0]):
         # Get the mask for this slice
         mask_slice = mask[idx]
-        # Get the unique instances
-        instances = np.unique(mask_slice)
-        # Remove the background
-        instances = instances[instances != 0]
-        # Handle the case where there are no instances
-        if len(instances) == 0:
-            mask_batch = np.zeros_like(mask_slice, dtype=bool)[np.newaxis, ...]
-            instances = np.array([0], dtype=np.uint8)
-        else:
-            # Convert into a batch of binarised masks for each instance
-            mask_batch = (
-                mask_slice[np.newaxis, ...]
-                == np.unique(instances)[:, np.newaxis, np.newaxis]
+        h, w = mask_slice.shape
+        # Bounding box per instance label, in one call
+        bboxes = ndimage.find_objects(mask_slice)
+        encoded_masks = []
+        for instance_id, bbox in enumerate(bboxes, start=1):
+            if bbox is None:
+                # This label isn't present in this slice
+                continue
+            y_slice, x_slice = bbox
+            local_mask = mask_slice[bbox] == instance_id
+            entry = _encode_binary(local_mask[np.newaxis, ...], idx=[instance_id])[0]
+            entry["offset"] = [y_slice.start, x_slice.start]
+            entry["full_size"] = [h, w]
+            encoded_masks.append(entry)
+        if not encoded_masks:
+            # No instances in this slice
+            encoded_masks = _encode_binary(
+                np.zeros_like(mask_slice, dtype=bool)[np.newaxis, ...],
+                idx=np.array([0], dtype=np.uint8),
             )
-        # Encode the binary masks
-        # Add the instance index to the metadata for later decoding
-        encoded_masks = _encode_binary(mask_batch, idx=instances)
         # Store the encoded masks
         out.append(encoded_masks)
     return out
@@ -166,22 +188,29 @@ def check_rle_type(rle: list[dict]) -> str:
     return mask_type
 
 
-def _decode_binary(rle: list[dict]) -> np.ndarray:
+def _decode_run_length(size: list[int], counts: list[int]) -> np.ndarray:
+    """Decode one RLE entry's counts into its own (possibly bbox-local) boolean mask."""
     # https://github.com/facebookresearch/sam2/blob/c2ec8e14a185632b0a5d8b161928ceb50197eddc/sam2/utils/amg.py#L140
-    res = []
-    for encoded_mask in rle:
-        h, w = encoded_mask["size"]
-        mask = np.empty(h * w, dtype=bool)
-        idx = 0
-        parity = False
-        for count in encoded_mask["counts"]:
-            mask[idx : idx + count] = parity
-            idx += count
-            # This acts as a toggle
-            parity ^= True
-        # Reshape and put in C order (encoded in Fortran order)
-        mask = mask.reshape(w, h).transpose()
-        res.append(mask)
+    h, w = size
+    mask = np.empty(h * w, dtype=bool)
+    idx = 0
+    parity = False
+    for count in counts:
+        mask[idx : idx + count] = parity
+        idx += count
+        # This acts as a toggle
+        parity ^= True
+    if idx != h * w:
+        # Check if counts are malformed and fail fast (again, only matters for masks outside AIoD)
+        raise ValueError(f"Malformed RLE counts: expected total length {h * w}, got {idx}")
+    # Reshape and put in C order (encoded in Fortran order)
+    return mask.reshape(w, h).transpose()
+
+
+def _decode_binary(rle: list[dict]) -> np.ndarray:
+    # Used directly for the top-level "binary" mask_type, where each entry is
+    # always a full slice (never bbox-cropped), so no offset placement here.
+    res = [_decode_run_length(entry["size"], entry["counts"]) for entry in rle]
     return np.stack(res, axis=0, dtype=bool)
 
 
@@ -190,16 +219,26 @@ def _decode_instance(rle) -> np.ndarray:
     out = []
     # rle_slice is a list of dictionaries for each instance
     for rle_slice in rle:
-        # Each dictionary contains the size and counts for the RLE, as well as any metadata
-        # NOTE: Could insert the idx at each but the binary version is quicker
-        decoded_slice = _decode_binary(rle_slice)
-        # Convert stack of binary masks for each instance into a single instance mask
-        # Get the instance indices to multiply by the binary masks
-        instance_indices = np.array([r["idx"] for r in rle_slice], dtype=np.uint16)
-        # Multiply the binary masks by the instance indices and sum to flatten
-        decoded_slice = np.einsum("ijk,i->jk", decoded_slice, instance_indices)
-        # Append the decoded slice
-        out.append(decoded_slice)
+        # Full-frame size: new-format (bbox-cropped) entries carry it in
+        # "full_size"; old-format entries (pre bounding-box encode) cover the
+        # full frame directly in "size". Every entry in a slice shares one
+        # full frame, so the first entry's is enough; _encode_instance always
+        # produces at least one entry per slice, so rle_slice is never empty.
+        first = rle_slice[0]
+        h, w = first.get("full_size", first["size"])
+        canvas = np.zeros((h, w), dtype=np.uint16)
+        for entry in rle_slice:
+            local_mask = _decode_run_length(entry["size"], entry["counts"])
+            y0, x0 = entry.get("offset", (0, 0))
+            lh, lw = entry["size"]
+            # Write each instance directly into its own region of the shared
+            # canvas instead of building a (K, H, W) stack to sum -- avoids
+            # ever materializing full-frame arrays per instance. Genuinely
+            # overlapping instances resolve as "last entry in the list wins"
+            # here, rather than the old sum-based approach, which never
+            # produced a correct value at overlaps anyway.
+            canvas[y0 : y0 + lh, x0 : x0 + lw][local_mask] = entry["idx"]
+        out.append(canvas)
     # Reconstruct the full mask array
     return np.stack(out)
 

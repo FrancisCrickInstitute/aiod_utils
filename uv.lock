@@ -10,6 +10,10 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
+[options]
+exclude-newer = "2026-07-02T14:31:53.129282Z"
+exclude-newer-span = "P7D"
+
 [[package]]
 name = "aicspylibczi"
 version = "3.3.1"
@@ -66,6 +70,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyyaml" },
     { name = "scikit-image" },
+    { name = "scipy" },
     { name = "tifffile" },
     { name = "zarr" },
 ]
@@ -77,6 +82,7 @@ bioformats = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "line-profiler" },
     { name = "pytest" },
 ]
 
@@ -96,13 +102,17 @@ requires-dist = [
     { name = "pandas", specifier = "<2.3.0" },
     { name = "pyyaml" },
     { name = "scikit-image", specifier = ">0.20" },
+    { name = "scipy", specifier = ">=1.17.1" },
     { name = "tifffile" },
     { name = "zarr", specifier = ">=3" },
 ]
 provides-extras = ["bioformats"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest" }]
+dev = [
+    { name = "line-profiler", specifier = ">=5.0.2" },
+    { name = "pytest" },
+]
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -835,6 +845,35 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/ac/21a1f8aa3777f5658576777ea76bfb124b702c520bbe90edf4ae9915eafa/lazy_loader-0.5.tar.gz", hash = "sha256:717f9179a0dbed357012ddad50a5ad3d5e4d9a0b8712680d4e687f5e6e6ed9b3", size = 15294, upload-time = "2026-03-06T15:45:09.054Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/a1/8d812e53a5da1687abb10445275d41a8b13adb781bbf7196ddbcf8d88505/lazy_loader-0.5-py3-none-any.whl", hash = "sha256:ab0ea149e9c554d4ffeeb21105ac60bed7f3b4fd69b1d2360a4add51b170b005", size = 8044, upload-time = "2026-03-06T15:45:07.668Z" },
+]
+
+[[package]]
+name = "line-profiler"
+version = "5.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/03/b6/6d18ad201417a9c5168995541d0fd7981b5652b2b34f6e46a3a93c0f1beb/line_profiler-5.0.2.tar.gz", hash = "sha256:8d8a990c84c64bcde45af22af502d17bc0ae107be405ce41bba92af5c39c0000", size = 407075, upload-time = "2026-02-23T23:31:20.698Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/cd/a92661cb24987d0a4cf86f7ec9f6a0f74ea981c520b6458275d41b11ec0a/line_profiler-5.0.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:602370a9bb8d020ea28ddac3bb7fd4331c91d495e6e81d5f75752cbb2f2bb802", size = 650547, upload-time = "2026-02-23T23:30:00.593Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/77/5489458f8cc01ea00cdf25bc6fa74e748a30e7b758275cc98b485b59de91/line_profiler-5.0.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:26956eef9668f641c9c6f9adb6b1b236252a73405e238452768812af14f9a145", size = 507989, upload-time = "2026-02-23T23:30:01.848Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/4f/14aace66e067fb5a774580bc71b348c323c91a4e2ac223a98822de67ecda/line_profiler-5.0.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:64376a726009b7842706a3fef2a6dba051f0bf5a98cbbcafa4c23d6c83bac53c", size = 497137, upload-time = "2026-02-23T23:30:03.515Z" },
+    { url = "https://files.pythonhosted.org/packages/52/48/ea92cc96538a192fdf74249f28ad9e9c0526743b12817f920985e7fdbbe2/line_profiler-5.0.2-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:68432878d7598916f02be3fbb83e3a4727443cfd96af9cbea05cc1ae9749ed82", size = 1526617, upload-time = "2026-02-23T23:30:05.211Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/8d/c73544fba5683a50d7579f21614942d9223e2dd618986be56d5beff561e5/line_profiler-5.0.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7956e79526dc4898ca63dd8e3f435ff674b35d7e06457bfff883efae3ecb8359", size = 1540576, upload-time = "2026-02-23T23:30:07.234Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/33/a3255c143148e5886179b689b0413bb0b7edbd6af1531db577f8bf8b69fd/line_profiler-5.0.2-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:29370b9d239c0e68ea017bbf2b582beed6122a439ef97a8e38228708b52ba595", size = 2480641, upload-time = "2026-02-23T23:30:08.638Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/c8/d398438f9af55c4bd799c15c6a9fc5d349c36ef461edce8ed3569768c964/line_profiler-5.0.2-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:f47682cb1cef2a3b3865e59fdaf2f486196476fa508ddcdd838e3484626c2a68", size = 2565285, upload-time = "2026-02-23T23:30:10.015Z" },
+    { url = "https://files.pythonhosted.org/packages/74/08/663f3dd52ebebcb98cddca9ca4f4b51fcd43ce2c8c6b676de28e2ad6f384/line_profiler-5.0.2-cp311-cp311-win_amd64.whl", hash = "sha256:b74416342261d0434e2ae0ff074ec0ecf0ea4e66ec2db5a95dd8b0ec7f2b1a8b", size = 480440, upload-time = "2026-02-23T23:30:11.588Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/c4/12ac6f1c139780301d23b9f64ccb160366063124e91134fcccfb24d8b9b7/line_profiler-5.0.2-cp311-cp311-win_arm64.whl", hash = "sha256:f0d51ddb054d38a37607b335475c8be9fae4152b01873d1fc1d6b6a317b66398", size = 464965, upload-time = "2026-02-23T23:30:13.262Z" },
+    { url = "https://files.pythonhosted.org/packages/99/92/fb766e6355118d2a681c18525d4c005c146ec44b064ccfd70f4529d8d260/line_profiler-5.0.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:256c1d5e84a93254dbe656d0486322190cc68f6b517544edef17a9f00167e680", size = 646920, upload-time = "2026-02-23T23:30:14.692Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/9d/3583c1cdc740206de9e4734bdcf377d649b89ea876bc36001d95b3dea67d/line_profiler-5.0.2-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:892f0cd9967b101ce7528be2d388616037c73cb27830effd7493fa021165c622", size = 505695, upload-time = "2026-02-23T23:30:16.375Z" },
+    { url = "https://files.pythonhosted.org/packages/27/60/412476a1d09beac783d11d3bbf85fe6c1e3d50058e3c28967fee59c46649/line_profiler-5.0.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:d2d02735843c14337dae3e80d95a732b4657ef759def75162ef97a1aa7466aac", size = 495859, upload-time = "2026-02-23T23:30:18.036Z" },
+    { url = "https://files.pythonhosted.org/packages/37/75/65028bad08264fd8f9c3f0fd405c539ff552c2d1cf2a00965157ad148973/line_profiler-5.0.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0d2e166a86dc9c78c349ee18b592b98ebfb9dae615f63fc77cce5f5f751a6ad0", size = 1464882, upload-time = "2026-02-23T23:30:19.273Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/6c/2d0286f67e6bb2b00ae23f9af6df18bfc6bb1ac5d803a8f46bd3eb22a8f1/line_profiler-5.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5a870b68af1539d718d030f4c4726d35cff4b14ab605147e65222933c5c0e10e", size = 1484331, upload-time = "2026-02-23T23:30:20.571Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/a4/b01359733214a1a85c5f86f3953b07deb61b267efa0328e8d436a1ad80ea/line_profiler-5.0.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:fe8cd787caa2a02ca7e138832fa4cab1f198377eaf6e5e8263e8b7506157c454", size = 2411802, upload-time = "2026-02-23T23:30:21.995Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/f4/1fa91206a6c50091cf614fdd5c9d349eb3a57d23f5eb8be8fffe7e0525b9/line_profiler-5.0.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:70ff915ade9e3ec38ff043ff093b590bbb3055e6fc8b311e0fe14cd78fb2a7f7", size = 2495790, upload-time = "2026-02-23T23:30:23.448Z" },
+    { url = "https://files.pythonhosted.org/packages/87/18/d389c72dce6c8318c088a7c29ee8961a913c8a1c6469888b517e8f47ddaf/line_profiler-5.0.2-cp312-cp312-win_amd64.whl", hash = "sha256:026779b9dfca0f367174f5d34bcccffce2755db40a4389f0d8a531a2e3ca7cfc", size = 478790, upload-time = "2026-02-23T23:30:24.848Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/54/d171600a4190c07215090a88846ef0093b5bf34a81f8059115592dbb1354/line_profiler-5.0.2-cp312-cp312-win_arm64.whl", hash = "sha256:fe22b927f05a61a0149976bf0d22d8e56fa742ec89f3d72358db71a1f440c77b", size = 462269, upload-time = "2026-02-23T23:30:26.237Z" },
 ]
 
 [[package]]
