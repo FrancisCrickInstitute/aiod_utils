@@ -10,10 +10,6 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
-[options]
-exclude-newer = "2026-07-20T13:46:16.259848Z"
-exclude-newer-span = "P7D"
-
 [[package]]
 name = "aicspylibczi"
 version = "3.3.1"
@@ -221,7 +217,7 @@ wheels = [
 
 [[package]]
 name = "bioio"
-version = "3.3.0"
+version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bioio-base" },
@@ -230,14 +226,14 @@ dependencies = [
     { name = "ome-types", extra = ["lxml"] },
     { name = "semver" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/99/0f/2e6ef1db997626168f618835c87cca34da5c7de6a7a10d19c3f43f342c39/bioio-3.3.0.tar.gz", hash = "sha256:45dd466dab857216b6b66076734f7281acbadbfd9e18e45bcdadb8841e93e8ca", size = 60782, upload-time = "2026-03-24T21:15:28.962Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/77/997629e256236442e2efb6e81c5347506d585f520e91a8fc45bbb9e71345/bioio-3.4.0.tar.gz", hash = "sha256:16d4594ac6d0adf36cc7c7c81668dbfa49a22604ef951b479174c9a6a02e0be5", size = 61232, upload-time = "2026-06-24T18:27:10.745Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/94/7609abde5ed45a91877e46111bfd0260de30d9a3a56e370f697cb783cd8e/bioio-3.3.0-py3-none-any.whl", hash = "sha256:da6c8f2cc081f63395986a1ef88e5778be9fb37ee4f444fcdad719e6fd6d1bc8", size = 58820, upload-time = "2026-03-24T21:15:27.445Z" },
+    { url = "https://files.pythonhosted.org/packages/95/5e/dda19fde262f74c310602e3c85f2a88fa591fb417c26a93a7d878e28c7f4/bioio-3.4.0-py3-none-any.whl", hash = "sha256:b44edbd7abac857ad70933aaa4d24b585f8690972230744220d79128e141ffdf", size = 60024, upload-time = "2026-06-24T18:27:09.072Z" },
 ]
 
 [[package]]
 name = "bioio-base"
-version = "3.3.0"
+version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dask", extra = ["array", "distributed"] },
@@ -247,9 +243,9 @@ dependencies = [
     { name = "pint" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/57/5d/5462b3043b48bad9e47c3a4e67c6ef524938fbcfb9224f544ddb1760bd7f/bioio_base-3.3.0.tar.gz", hash = "sha256:d9e5e1d0347f8e0abd18d3c3ed22b2075246d8962688b6a3077301fe4c1c9973", size = 97442, upload-time = "2026-03-24T19:31:02.444Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/77/aae2422b0d58bd6b52671a181d23294ea5d0e9439e300067617d13f5d0da/bioio_base-3.4.0.tar.gz", hash = "sha256:d8483ff2a612436ea6168a10803a702b5348054de32ac719d6ec3965ad63dd7b", size = 100006, upload-time = "2026-06-24T16:18:26.065Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/a9/9f623fa87e11d36e79d86550ed04953e0ecd9e25e299430ecdd45030e379/bioio_base-3.3.0-py3-none-any.whl", hash = "sha256:cda15fc586b0b4656c7db304a31a18de1113a81abc615d041a4d660c28cf0319", size = 101086, upload-time = "2026-03-24T19:31:01.261Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/a9/354c21436a3f10c5ee4102f62ce90bd0c8d2e524cded74e67c87ff97a1ec/bioio_base-3.4.0-py3-none-any.whl", hash = "sha256:b4fdac7e543c02ed6fa42761a578eb4191039f2e6a18d3f1f3b9e8efc3b14064", size = 104518, upload-time = "2026-06-24T16:18:24.63Z" },
 ]
 
 [[package]]
@@ -330,7 +326,7 @@ wheels = [
 
 [[package]]
 name = "bioio-nd2"
-version = "1.7.0"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bioio-base" },
@@ -341,9 +337,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/26/fd885ba7f6578a1cc51cebb9fdfa18259d0dcc721f1c9143b908d6a52a81/bioio_nd2-1.7.0.tar.gz", hash = "sha256:4eb2c14d8079b2de4a0c648b59703b1b1878804916265810445876d589e40a33", size = 20305, upload-time = "2026-03-30T15:39:57.694Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/3d/cc62bae7c9c1addfea7e7291616331befd6bd97379b136ed19e74622edae/bioio_nd2-2.3.0.tar.gz", hash = "sha256:a33ec4f27ab67d75d936ca8981d611656681621f6a92febd3f604b3bceef994e", size = 23954, upload-time = "2026-07-08T20:04:30.722Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/8b/ce3479b4effa86be3d73c448dedb8d1810a7b52b1a6e77f2d906762f0ddb/bioio_nd2-1.7.0-py3-none-any.whl", hash = "sha256:031503a7db0447e6e871060037b25397451d6be5f5b9ebe6028519416d13e657", size = 12174, upload-time = "2026-03-30T15:39:56.285Z" },
+    { url = "https://files.pythonhosted.org/packages/66/5a/5c3932abac0ccb1f684f5147a96a0dfa03eecc2d28dcf5c4887ea284036d/bioio_nd2-2.3.0-py3-none-any.whl", hash = "sha256:a4e0fba9819bc69f1392e01e9f928f7f11a3949f0f505bc585cc7c5e7e0779e0", size = 16137, upload-time = "2026-07-08T20:04:29.555Z" },
 ]
 
 [[package]]
