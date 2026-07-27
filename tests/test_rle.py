@@ -418,8 +418,12 @@ def test_decode_overlapping_instances_last_write_wins():
     unaffected."""
     from aiod_utils.rle import _encode_binary, decode
 
-    mask_a = np.array([[True, False, False], [False, True, False], [False, False, False]])
-    mask_b = np.array([[False, False, False], [False, True, False], [False, False, True]])
+    mask_a = np.array(
+        [[True, False, False], [False, True, False], [False, False, False]]
+    )
+    mask_b = np.array(
+        [[False, False, False], [False, True, False], [False, False, True]]
+    )
     entry_a = _encode_binary(mask_a[np.newaxis, ...], idx=[1])[0]
     entry_b = _encode_binary(mask_b[np.newaxis, ...], idx=[2])[0]
 
@@ -451,7 +455,9 @@ def test_decode_overlapping_bbox_instances_last_write_wins():
     assert decoded_mask[0, 0] == 1
     assert decoded_mask[0, 1] == 1
     assert decoded_mask[1, 0] == 1
-    assert decoded_mask[1, 1] == 2  # overlap: entry_b (bbox rows/cols 1-2) is last, wins
+    assert (
+        decoded_mask[1, 1] == 2
+    )  # overlap: entry_b (bbox rows/cols 1-2) is last, wins
     assert decoded_mask[2, 2] == 2
     assert decoded_mask[0, 2] == 0
     assert decoded_mask[3, 3] == 0
@@ -464,7 +470,10 @@ def test_decode_three_way_overlap_last_write_wins():
 
     shared_pixel_mask = np.zeros((3, 3), dtype=bool)
     shared_pixel_mask[1, 1] = True
-    entries = [_encode_binary(shared_pixel_mask[np.newaxis, ...], idx=[i])[0] for i in (5, 6, 7)]
+    entries = [
+        _encode_binary(shared_pixel_mask[np.newaxis, ...], idx=[i])[0]
+        for i in (5, 6, 7)
+    ]
 
     rle = [entries, {"metadata": {"mask_type": "instance"}}]
     decoded_mask, _ = decode(rle, mask_type="instance")
