@@ -33,11 +33,32 @@ def _guess_reader(fpath: str | Path) -> type[Reader] | None:
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
+        elif ext in [".czi"]:
+            from bioio_czi import Reader as CZIReader
+
+            return CZIReader
+        elif ext in [".lif"]:
+            from bioio_lif import Reader as LIFReader
+
+            return LIFReader
+        else:
+            # Long tail of formats with no dedicated lightweight reader: fall
+            # back to bioio-bioformats if the (optional, heavy) extra is
+            # installed, otherwise let the except block below point the user
+            # at it, or at pre-converting with bioformats2raw.
+            from bioio_bioformats import Reader as BioformatsReader
+
+            return BioformatsReader
     except ModuleNotFoundError as e:
-        warnings.warn(
-            f"Recommended reader plugin {e.name} for file type {ext} not installed",
-            stacklevel=2,
+        message = (
+            f"Recommended reader plugin {e.name} for file type {ext} not installed"
         )
+        if e.name == "bioio_bioformats":
+            message += (
+                ". Install aiod_utils[bioformats], or convert the file first "
+                "with bioformats2raw and point at the converted output."
+            )
+        warnings.warn(message, stacklevel=2)
     return None
 
 
