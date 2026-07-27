@@ -1,13 +1,12 @@
-# Trigger: push a tag matching v*, e.g. `git tag v1.2.3 && git push --tags`
+# Trigger: publish a GitHub release (tag it e.g. v1.2.3 when creating the release)
 # Needs CROSS_REPO_PAT configured
 #   Fine-grained PAT with Contents+PRs read/write on Segment-Flow
 
 name: Publish & notify downstream
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 jobs:
   build:
