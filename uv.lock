@@ -10,6 +10,10 @@ resolution-markers = [
     "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
+[options]
+exclude-newer = "2026-07-23T13:00:50.221413Z"
+exclude-newer-span = "P7D"
+
 [[package]]
 name = "aicspylibczi"
 version = "3.3.1"

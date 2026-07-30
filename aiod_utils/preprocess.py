@@ -483,6 +483,8 @@ def get_downsample_factor(
     """Overloaded function to get downsample factor from either methods or filename"""
     if methods is None and filename is None:
         raise ValueError("Must provide either methods or filename!")
+    if methods is not None and filename is not None:
+        raise ValueError("Must provide either methods or filename, not both!")
     factor = None
     if filename is not None:
         downsample_factor = re.findall(
@@ -496,7 +498,6 @@ def get_downsample_factor(
     elif methods is not None:
         # Load and check all methods are valid
         methods = load_methods(methods, parse=False)
-        factor = None
         for d in methods:
             if d["name"] == "Downsample":
                 factor = tuple(d["params"]["block_size"])
