@@ -486,7 +486,7 @@ def get_downsample_factor(
     factor = None
     if filename is not None:
         downsample_factor = re.findall(
-            r"Downsample-block_size=(\d),(\d),(\d)", filename
+            r"Downsample-block_size=(\d+),(\d+),(\d+)", filename
         )
         if len(downsample_factor) == 0:
             factor = None
