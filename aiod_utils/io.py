@@ -181,9 +181,8 @@ def _save_image_ome_tiff(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
     if not hasattr(writers, "OmeTiffWriter"):
         raise AttributeError("OmeTiffWriter")
     if isinstance(data, BioImage):
-        data.save(fpath, dim_order=dim_order)
-    else:
-        writers.OmeTiffWriter.save(data, fpath, dim_order=dim_order)
+        data = load_image_data(data, dim_order=dim_order)
+    writers.OmeTiffWriter.save(data, fpath, dim_order=dim_order)
 
 
 def image_paths_to_csv(
