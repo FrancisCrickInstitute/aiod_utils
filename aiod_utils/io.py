@@ -50,40 +50,33 @@ def get_image_id(img_path: str | Path) -> str:
     """
     Get a consistent identity for an image path to use as basis for derived paths
     (e.g. mask filenames)
+
     Strip accepted extensions (potentially multi-dot) by polling bioio for those extensions
 
     Centralised function here gives a better source of truth across e.g. Napari & Nextflow
     for expected filenames
     """
     name = Path(img_path).name
-    extensions = Path(img_path).suffixes
-    if not extensions:
+    if not Path(img_path).suffix:
         raise ValueError(f"Image path {img_path} has no extension, which is not supported!")
-    if len(extensions) > 2:
-        # NOTE: This may cause issues if a user gives a filename like example_data.v2.ome.tiff
-        # We could just truncate all extensions to the last two, but I'd rather error out for now
-        raise ValueError(
-            f"Image path {img_path} has more than 2 extensions ({extensions}), which is not supported!"
-        )
-    ext = "".join(extensions).lower()
+    name_lower = name.lower()
+
     # get_plugins() returns extensions from all installed bioio reader plugins
-    # Extensions are ordered in descening length, such that ome.tiff is checked before .tiff
     extension_mapping = get_plugins(use_cache=True)
-    # If extension (single or multi) in bioio mapping, strip it and return pure filename
-    if ext in extension_mapping:
-        return name[: -len(ext)]
-    if len(extensions) == 2:
-        # bioio-ome-zarr reader currently only lists .zarr as a supported extension
-        # Due to this and possible others, add a check for .ome suffix and match against the remaining extension
-        if extensions[0] == ".ome" and extensions[1] in extension_mapping:
+    candidates = set(extension_mapping)
+    # bioio-ome-zarr reader only lists .zarr as supported (not .ome.zarr!)
+    # So add .ome.zarr manually (for now)
+    candidates.add(".ome.zarr")
+
+    # Match the longest recognized extension against the filename's end
+    # We match bioio and match e.g. .ome.tiff first over .tiff
+    for ext in sorted(candidates, key=len, reverse=True):
+        if name_lower.endswith(ext):
             return name[: -len(ext)]
-        # Otherwise, the first extension could be from the user, e.g. data.v2.tiff
-        # Check second extension against mapping to see
-        if extensions[1] in extension_mapping:
-            return name[: -len(extensions[1])]
     # If still no match, then raise an error so we can avoid more obscure errors later in the pipeline
-    raise ValueError(  # noqa: B904
-        f"Image path {img_path} has unrecognized extension {ext}, which is not supported!"
+    raise ModuleNotFoundError(
+        f"No bioio reader found that supports '{Path(img_path).suffix}'"
+        f"Accepted extensions: {candidates}"
     )
 
 
