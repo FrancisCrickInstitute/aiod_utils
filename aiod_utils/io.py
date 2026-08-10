@@ -80,6 +80,53 @@ def get_image_id(img_path: str | Path) -> str:
     )
 
 
+def resolve_image_ids(img_paths: Sequence[PathLike]) -> list[str]:
+    """
+    Resolve batch of image paths into image_ids, checking for collisions
+
+    Collisions occur when the name is the same and extension differs, or same
+    name and extension.
+
+    Fix the former by incorporating extension into the filename.
+
+    Raise an error for the latter to avoid issues
+    """
+    # Get image_ids for all input paths
+    paths = [Path(p) for p in img_paths]
+    raw_ids = [get_image_id(p) for p in paths]
+    # Group all ids together
+    groups = defaultdict(list)
+    for i, raw_id in enumerate(raw_ids):
+        groups[raw_id].append(i)
+    # Create new list to modify
+    resolved = list(raw_ids)
+    for raw_id, idxs in groups.items():
+        if len(idxs) == 1:
+            continue
+        for i in idxs:
+            # Grab whatever get_image_id stripped as the extension and roll it in
+            ext = paths[i].name[len(raw_id) :]
+            resolved[i] = f"{raw_id}_{ext.lstrip('.').replace('.', '_')}"
+    # Check to see if we still have collisions (same filename and extension, diff parent)
+    conflicts = defaultdict(list)
+    for i, resolved_id in enumerate(resolved):
+        conflicts[resolved_id].append(paths[i])
+    still_colliding = {k: v for k, v in conflicts.items() if len(v) > 1}
+    if still_colliding:
+        detail = "\n".join(
+            f"  {image_id}: {[str(p) for p in ps]}"
+            for image_id, ps in still_colliding.items()
+        )
+        raise ValueError(
+            "Cannot derive unique image_id for the following image(s) - they "
+            "share both a filename and extension across different "
+            "directories:\n"
+            f"{detail}\n"
+            "Rename or move one of each conflicting set of files before rerunning."
+        )
+    return resolved
+
+
 def get_mask_name(
     run_hash: str,
     image_id: str | Path | None = None,
