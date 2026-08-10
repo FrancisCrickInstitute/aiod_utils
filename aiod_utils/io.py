@@ -91,13 +91,6 @@ def get_mask_name(
     Segment-Flow mask filename before it exists (e.g. aiod_napari's file
     watcher) can call this.
 
-    Deliberately opaque rather than human-readable: task/model/model_type are
-    dropped, since resolvedParamHash (run_hash) already reflects them for
-    uniqueness purposes, and they're already visible in the containing
-    directory name (mask_output_dir includes model/model_type). Avoiding them
-    here also avoids ever needing model-manifest slug resolution just to
-    predict a filename.
-
     NOTE: Segment-Flow's equivalent (getMaskName in main.nf) has to compute
     this independently. Nextflow's process `output:` declarations need the
     filename pattern known before the script runs, which a Python func can't
