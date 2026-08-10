@@ -1,6 +1,5 @@
 import hashlib
 import json
-import re
 import warnings
 from abc import abstractmethod
 from pathlib import Path
@@ -476,33 +475,14 @@ def hash_params_str(params_str: str) -> str:
     return hashlib.md5(params_str.encode()).hexdigest()[:8]
 
 
-def get_downsample_factor(
-    methods: list[dict] | str | Path | None = None,
-    filename: str | None = None,
-) -> tuple[int, ...] | None:
-    """Overloaded function to get downsample factor from either methods or filename"""
-    if methods is None and filename is None:
-        raise ValueError("Must provide either methods or filename!")
-    if methods is not None and filename is not None:
-        raise ValueError("Must provide either methods or filename, not both!")
-    factor = None
-    if filename is not None:
-        downsample_factor = re.findall(
-            r"Downsample-block_size=(\d+),(\d+),(\d+)", filename
-        )
-        if len(downsample_factor) == 0:
-            factor = None
-        else:
-            # Should only be one match, so extract the tuple
-            factor = tuple(map(int, downsample_factor[0]))
-    elif methods is not None:
-        # Load and check all methods are valid
-        methods = load_methods(methods, parse=False)
-        for d in methods:
-            if d["name"] == "Downsample":
-                factor = tuple(d["params"]["block_size"])
-                break
-    return factor
+def get_downsample_factor(methods: list[dict] | str | Path) -> tuple[int, ...] | None:
+    """Extract downsample factor from supplied methods"""
+    # Load and check all methods are valid
+    methods = load_methods(methods, parse=False)
+    for d in methods:
+        if d["name"] == "Downsample":
+            factor = tuple(d["params"]["block_size"])
+            return factor
 
 
 def get_output_shape(options, input_shape) -> Stack:
