@@ -98,27 +98,38 @@ def _guess_reader(fpath: PathLike) -> type[Reader] | None:
     return None
 
 
-def get_image_id(img_path: PathLike) -> str:
+def get_image_id(img_path: str | Path) -> str:
     """
     Get a consistent identity for an image path to use as basis for derived paths
     (e.g. mask filenames)
+
+    Strip accepted extensions (potentially multi-dot) by polling bioio for those extensions
 
     Centralised function here gives a better source of truth across e.g. Napari & Nextflow
     for expected filenames
     """
     name = Path(img_path).name
     if not Path(img_path).suffix:
-        raise ValueError(
-            f"Image path {img_path} has no extension, which is not supported!"
-        )
-    ext = get_extension(img_path)
-    # Fail here rather than let an unreadable file cause obscure errors later in the pipeline
-    if ext is None:
-        raise ValueError(
-            f"Image path {img_path} has an unrecognized extension "
-            f"'{Path(img_path).suffix}' - no installed bioio reader supports it."
-        )
-    return name[: -len(ext)]
+        raise ValueError(f"Image path {img_path} has no extension, which is not supported!")
+    name_lower = name.lower()
+
+    # get_plugins() returns extensions from all installed bioio reader plugins
+    extension_mapping = get_plugins(use_cache=True)
+    candidates = set(extension_mapping)
+    # bioio-ome-zarr reader only lists .zarr as supported (not .ome.zarr!)
+    # So add .ome.zarr manually (for now)
+    candidates.add(".ome.zarr")
+
+    # Match the longest recognized extension against the filename's end
+    # We match bioio and match e.g. .ome.tiff first over .tiff
+    for ext in sorted(candidates, key=len, reverse=True):
+        if name_lower.endswith(ext):
+            return name[: -len(ext)]
+    # If still no match, then raise an error so we can avoid more obscure errors later in the pipeline
+    raise ModuleNotFoundError(
+        f"No bioio reader found that supports '{Path(img_path).suffix}'"
+        f"Accepted extensions: {candidates}"
+    )
 
 
 def resolve_image_ids(img_paths: Sequence[PathLike]) -> list[str]:
