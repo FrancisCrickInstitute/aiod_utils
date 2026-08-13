@@ -34,6 +34,7 @@ dependencies = [
     "bioio-imageio>=1.1.0",
     "bioio-lif",
     "bioio-nd2",
+    "bioio-ome-tiff",
     "bioio-ome-zarr>=2",
     "bioio-tifffile>=1.2.0",
     "tifffile",
@@ -43,7 +44,8 @@ dependencies = [
     "opencv-python",
     "scikit-image>0.20",
     "pyyaml",
-    "pandas<2.3.0"
+    "pandas<2.3.0",
+    "scipy>=1.17.1",
 ]
 
 [project.urls]
@@ -55,8 +57,14 @@ source = "https://github.com/FrancisCrickInstitute/aiod_utils"
 bioformats = ["bioio-bioformats"]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "line-profiler>=5.0.2",
+    "pytest",
+]
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -72,6 +80,10 @@ packages = ["aiod_utils"]
 exclude = [
     ".github"
 ]
+
+
+[tool.uv]
+exclude-newer = "7 days"
 
 
 [tool.ruff]
