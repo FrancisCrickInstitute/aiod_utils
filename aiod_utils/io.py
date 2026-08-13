@@ -1,68 +1,100 @@
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
+from functools import lru_cache
 from pathlib import Path
 
 import dask.array as da
 import numpy as np
 import pandas as pd
 from bioio import BioImage, writers
+from bioio.plugins import get_plugins
 from bioio_base.exceptions import InvalidDimensionOrderingError
 from bioio_base.reader import Reader
 
 PathLike = str | Path
 ImageLike = BioImage | np.ndarray | da.Array
 
+# Formats an installed reader handles but doesn't register: bioio-ome-zarr claims
+# only ".zarr", and bioio-imageio only ".jpg"
+_EXTRA_EXTENSIONS = (".ome.zarr", ".jpeg")
+
+
+@lru_cache(maxsize=1)
+def _known_extensions() -> tuple[str, ...]:
+    """
+    Extensions claimed by the installed bioio reader plugins, longest first.
+
+    Polling the plugins rather than hardcoding keeps this in step with whichever
+    readers are actually installed, which varies per environment (e.g. the
+    optional bioformats extra pulls in a long tail of formats).
+    """
+    extensions = set(get_plugins(use_cache=True)) | set(_EXTRA_EXTENSIONS)
+    return tuple(sorted(extensions, key=len, reverse=True))
+
+
+def get_extension(fpath: PathLike) -> str | None:
+    """
+    Extension of an image path, or None if no installed reader claims it.
+
+    Path.suffixes is unusable here because filenames legitimately contain dots
+    that aren't part of the extension (e.g. stage coordinates in
+    `tile_x-2.5_y-1.0.ome.tiff`). Matching longest-first means the compound
+    `.ome.tiff` wins over `.tiff`.
+
+    Single source of truth for every extension decision in this module, so that
+    what we can read and what we can write stay consistent.
+    """
+    name = Path(fpath).name.lower()
+    return next((ext for ext in _known_extensions() if name.endswith(ext)), None)
+
 
 def _guess_reader(fpath: PathLike) -> type[Reader] | None:
-    ext = "".join(Path(fpath).suffixes).lower()
+    ext = get_extension(fpath)
+    if ext is None:
+        warnings.warn(
+            f"No installed bioio reader supports '{Path(fpath).suffix}'. Install "
+            "aiod_utils[bioformats] to cover the long tail of formats, or convert "
+            "the file first with bioformats2raw and point at the converted output.",
+            stacklevel=2,
+        )
+        return None
     try:
-        if ext.endswith((".ome.tiff", ".ome.tif")):
+        if ext in (".ome.tiff", ".ome.tif"):
             from bioio_ome_tiff import Reader as OMETiffReader
 
             return OMETiffReader
-        elif ext.endswith((".tif", ".tiff")):
+        elif ext in (".tif", ".tiff"):
             from bioio_tifffile import Reader as TiffReader
 
             return TiffReader
-        elif ext.endswith((".zarr", ".ome.zarr")):
+        elif ext in (".zarr", ".ome.zarr"):
             from bioio_ome_zarr import Reader as ZarrReader
 
             return ZarrReader
-        elif ext.endswith((".jpg", ".jpeg", ".png")):
+        elif ext in (".jpg", ".jpeg", ".png"):
             from bioio_imageio import Reader as ImageIOReader
 
             return ImageIOReader
-        elif ext.endswith((".nd2",)):
+        elif ext == ".nd2":
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
-        elif ext in [".czi"]:
+        elif ext == ".czi":
             from bioio_czi import Reader as CZIReader
 
             return CZIReader
-        elif ext in [".lif"]:
+        elif ext == ".lif":
             from bioio_lif import Reader as LIFReader
 
             return LIFReader
-        else:
-            # Long tail of formats with no dedicated lightweight reader: fall
-            # back to bioio-bioformats if the (optional, heavy) extra is
-            # installed, otherwise let the except block below point the user
-            # at it, or at pre-converting with bioformats2raw.
-            from bioio_bioformats import Reader as BioformatsReader
-
-            return BioformatsReader
     except ModuleNotFoundError as e:
-        message = (
-            f"Recommended reader plugin {e.name} for file extension {ext} not installed"
+        warnings.warn(
+            f"Recommended reader plugin {e.name} for file extension {ext} not installed",
+            stacklevel=2,
         )
-        if e.name == "bioio_bioformats":
-            message += (
-                ". Install aiod_utils[bioformats], or convert the file first "
-                "with bioformats2raw and point at the converted output."
-            )
-        warnings.warn(message, stacklevel=2)
+    # Some installed plugin claims this extension and we have no preference
+    # between the candidates, so let bioio resolve it with its own plugin order
     return None
 
 
@@ -143,8 +175,8 @@ def save_image(
     fpath: PathLike,
     dim_order: str = "CZYX",
 ):
-    ext = "".join(Path(fpath).suffixes).lower()
-    if ext.endswith((".ome.tiff", ".ome.tif", ".tif", ".tiff")):
+    ext = get_extension(fpath)
+    if ext in (".ome.tiff", ".ome.tif", ".tif", ".tiff"):
         try:
             _save_image_ome_tiff(data, fpath, dim_order)
         except AttributeError as exc:
@@ -166,7 +198,7 @@ def save_image(
                     "Cannot use tifffile to save image with unspecified dimensions"
                 ) from exc
             imwrite(fpath, data, metadata={"axes": dim_order})
-    elif ext.endswith((".zarr", ".ome.zarr")):
+    elif ext in (".zarr", ".ome.zarr"):
         try:
             _save_image_ome_zarr(data, fpath, dim_order)
         except AttributeError as exc:
@@ -174,7 +206,7 @@ def save_image(
                 "Cannot save to zarr without bioio-zarr installed."
             ) from exc
     else:
-        raise ValueError(f"Unsupported extension: {ext}")
+        raise ValueError(f"Unsupported extension: {Path(fpath).suffix}")
 
 
 def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
