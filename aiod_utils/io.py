@@ -1,64 +1,99 @@
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
+from functools import lru_cache
 from pathlib import Path
 
 import dask.array as da
 import numpy as np
 import pandas as pd
 from bioio import BioImage
+from bioio.plugins import get_plugins
 from bioio_base.reader import Reader
+
+# Formats an installed reader handles but doesn't register
+# bioio-ome-zarr claims only ".zarr"
+# bioio-imageio only ".jpg"
+_EXTRA_EXTENSIONS = (".ome.zarr", ".jpeg")
+
+
+@lru_cache(maxsize=1)
+def _known_extensions() -> tuple[str, ...]:
+    """
+    Extensions claimed by the installed bioio reader plugins, longest first.
+    Longest first to ensure e.g. `.ome.tiff` wins over `.tiff`.
+
+    Note that this does mean matches depending on what readers are installed.
+    For AIoD, this should all be pre-packaged/containerised(!) so should be stable.
+    """
+    extensions = set(get_plugins(use_cache=True)) | set(_EXTRA_EXTENSIONS)
+    return tuple(sorted(extensions, key=len, reverse=True))
+
+
+def get_extension(fpath: str | Path) -> str | None:
+    """Extension of an image path, or None if no installed reader claims it."""
+    name = Path(fpath).name.lower()
+    for ext in _known_extensions():
+        if name.endswith(ext):
+            return ext
+    return None
 
 
 def _guess_reader(fpath: str | Path) -> type[Reader] | None:
-    ext = "".join(Path(fpath).suffixes).lower()
+    """
+    Insert some opinions on which reader to pick, defaulting to bioio
+    """
+    ext = get_extension(fpath)
+    if ext is None:
+        warnings.warn(
+            f"No installed bioio reader supports '{Path(fpath).suffix}'. Install "
+            "aiod_utils[bioformats] to cover the long tail of formats, or convert "
+            "the file first with bioformats2raw and point at the converted output.",
+            stacklevel=2,
+        )
+        return None
+    # Now that we have a mapped extension, select which reader we prefer
+    # NOTE: Some of this may be redundant, but it ensures that a specific
+    # reader is used, esp when bioformats may gobble them all!
     try:
-        if ext in [".ome.tiff", ".ome.tif"]:
+        if ext in (".ome.tiff", ".ome.tif"):
             from bioio_ome_tiff import Reader as OMETiffReader
 
             return OMETiffReader
-        elif ext in [".tif", ".tiff"]:
+        # Override: bioio would read a bare .tif/.tiff with bioio-ome-tiff
+        elif ext in (".tif", ".tiff"):
             from bioio_tifffile import Reader as TiffReader
 
             return TiffReader
-        elif ext in [".zarr", ".ome.zarr"]:
+        # Override: bioio-ome-zarr does not register .ome.zarr, only .zarr
+        elif ext in (".zarr", ".ome.zarr"):
             from bioio_ome_zarr import Reader as ZarrReader
 
             return ZarrReader
-        elif ext in [".jpg", ".jpeg", ".png"]:
+        # Override: bioio-imageio reads only registers .jpg
+        elif ext in (".jpg", ".jpeg", ".png"):
             from bioio_imageio import Reader as ImageIOReader
 
             return ImageIOReader
-        elif ext in [".nd2"]:
+        elif ext == ".nd2":
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
-        elif ext in [".czi"]:
+        elif ext == ".czi":
             from bioio_czi import Reader as CZIReader
 
             return CZIReader
-        elif ext in [".lif"]:
+        elif ext == ".lif":
             from bioio_lif import Reader as LIFReader
 
             return LIFReader
-        else:
-            # Long tail of formats with no dedicated lightweight reader: fall
-            # back to bioio-bioformats if the (optional, heavy) extra is
-            # installed, otherwise let the except block below point the user
-            # at it, or at pre-converting with bioformats2raw.
-            from bioio_bioformats import Reader as BioformatsReader
-
-            return BioformatsReader
     except ModuleNotFoundError as e:
-        message = (
-            f"Recommended reader plugin {e.name} for file type {ext} not installed"
+        warnings.warn(
+            f"Recommended reader plugin {e.name} for file extension {ext} not installed",
+            stacklevel=2,
         )
-        if e.name == "bioio_bioformats":
-            message += (
-                ". Install aiod_utils[bioformats], or convert the file first "
-                "with bioformats2raw and point at the converted output."
-            )
-        warnings.warn(message, stacklevel=2)
+    # Either an extension we do not pin, or one whose preferred plugin is missing;
+    # either way bioio's own ordering is the best remaining option
     return None
 
 
