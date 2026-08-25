@@ -6,30 +6,34 @@ from pathlib import Path
 import dask.array as da
 import numpy as np
 import pandas as pd
-from bioio import BioImage
+from bioio import BioImage, writers
+from bioio_base.exceptions import InvalidDimensionOrderingError
 from bioio_base.reader import Reader
 
+PathLike = str | Path
+ImageLike = BioImage | np.ndarray | da.Array
 
-def _guess_reader(fpath: str | Path) -> type[Reader] | None:
+
+def _guess_reader(fpath: PathLike) -> type[Reader] | None:
     ext = "".join(Path(fpath).suffixes).lower()
     try:
-        if ext in [".ome.tiff", ".ome.tif"]:
+        if ext.endswith((".ome.tiff", ".ome.tif")):
             from bioio_ome_tiff import Reader as OMETiffReader
 
             return OMETiffReader
-        elif ext in [".tif", ".tiff"]:
+        elif ext.endswith((".tif", ".tiff")):
             from bioio_tifffile import Reader as TiffReader
 
             return TiffReader
-        elif ext in [".zarr", ".ome.zarr"]:
+        elif ext.endswith((".zarr", ".ome.zarr")):
             from bioio_ome_zarr import Reader as ZarrReader
 
             return ZarrReader
-        elif ext in [".jpg", ".jpeg", ".png"]:
+        elif ext.endswith((".jpg", ".jpeg", ".png")):
             from bioio_imageio import Reader as ImageIOReader
 
             return ImageIOReader
-        elif ext in [".nd2"]:
+        elif ext.endswith((".nd2",)):
             from bioio_nd2 import Reader as ND2Reader
 
             return ND2Reader
@@ -51,7 +55,7 @@ def _guess_reader(fpath: str | Path) -> type[Reader] | None:
             return BioformatsReader
     except ModuleNotFoundError as e:
         message = (
-            f"Recommended reader plugin {e.name} for file type {ext} not installed"
+            f"Recommended reader plugin {e.name} for file extension {ext} not installed"
         )
         if e.name == "bioio_bioformats":
             message += (
@@ -68,10 +72,11 @@ def guess_rgba(img: BioImage):
 
 
 def load_image_data(
-    image: str | Path | BioImage,
+    image: PathLike | BioImage,
     dim_order: str = "CZYX",
     as_dask: bool = False,
     rgb_as_channels=True,
+    expand_dims=True,
     **kwargs,
 ) -> np.ndarray | da.Array:
     """
@@ -93,6 +98,11 @@ def load_image_data(
     """
     if isinstance(image, (str, Path)):
         image = load_image(image, **kwargs)
+    elif len(kwargs):
+        warnings.warn(
+            f"load_image_data() received unexpected kwargs {kwargs}, which will be ignored",
+            stacklevel=2,
+        )
     # Check the dim_order, and remap obvious aliases
     dim_order = dim_order.upper().translate(str.maketrans("DHW", "ZYX"))
     if (
@@ -104,6 +114,11 @@ def load_image_data(
         if getattr(image.dims, "C", 1) > 1:
             raise NotImplementedError("Multi-channel RGB(A) images not supported")
         dim_order = dim_order.replace("C", "S")
+    # Keep only actual dims if singleton expansion disabled
+    if not expand_dims:
+        dim_order = "".join(
+            d for d in dim_order if d in image.standard_metadata.dimensions_present
+        )
     return (
         image.get_image_dask_data(dimension_order_out=dim_order)
         if as_dask
@@ -112,7 +127,7 @@ def load_image_data(
 
 
 def load_image(
-    fpath: str | Path,
+    fpath: PathLike,
     reader: type[Reader] | None = None,
 ) -> BioImage:
     # Load the image with the requested reader
@@ -123,9 +138,77 @@ def load_image(
     return BioImage(fpath, reader=reader or _guess_reader(fpath))
 
 
+def save_image(
+    data: ImageLike,
+    fpath: PathLike,
+    dim_order: str = "CZYX",
+):
+    ext = "".join(Path(fpath).suffixes).lower()
+    if ext.endswith((".ome.tiff", ".ome.tif", ".tif", ".tiff")):
+        try:
+            _save_image_ome_tiff(data, fpath, dim_order)
+        except AttributeError as exc:
+            # Fall back on tifffile for missing writer
+            from tifffile import imwrite
+
+            data = (
+                load_image_data(
+                    data,
+                    dim_order=dim_order,
+                    as_dask=False,
+                )
+                if isinstance(data, (BioImage, Path, str))
+                else data
+            )
+            # TODO AIOD-315: can't deal with this scenario until load_image_data returns dim string
+            if len(dim_order) != len(data.shape):
+                raise NotImplementedError(
+                    "Cannot use tifffile to save image with unspecified dimensions"
+                ) from exc
+            imwrite(fpath, data, metadata={"axes": dim_order})
+    elif ext.endswith((".zarr", ".ome.zarr")):
+        try:
+            _save_image_ome_zarr(data, fpath, dim_order)
+        except AttributeError as exc:
+            raise NotImplementedError(
+                "Cannot save to zarr without bioio-zarr installed."
+            ) from exc
+    else:
+        raise ValueError(f"Unsupported extension: {ext}")
+
+
+def _save_image_ome_zarr(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
+    if not hasattr(writers, "OMEZarrWriter"):
+        raise AttributeError("OMEZarrWriter")
+    if isinstance(data, BioImage):
+        data = load_image_data(data, dim_order=dim_order)
+    # Ensure axes_names length matches data ndim; take trailing axes if dim_order is longer
+    if len(dim_order) > data.ndim:
+        # NOTE: revisit this for AIOD-315
+        dim_order = dim_order[-data.ndim :]
+    elif len(dim_order) < data.ndim:
+        raise InvalidDimensionOrderingError(
+            f"dim_order '{dim_order}' has fewer dims than data shape {data.shape}"
+        )
+    writers.OMEZarrWriter(
+        store=str(fpath),
+        level_shapes=data.shape,
+        dtype=data.dtype,
+        axes_names=[a.lower() for a in dim_order],
+    ).write_full_volume(data)
+
+
+def _save_image_ome_tiff(data: ImageLike, fpath: PathLike, dim_order="CZYX"):
+    if not hasattr(writers, "OmeTiffWriter"):
+        raise AttributeError("OmeTiffWriter")
+    if isinstance(data, BioImage):
+        data = load_image_data(data, dim_order=dim_order)
+    writers.OmeTiffWriter.save(data, fpath, dim_order=dim_order)
+
+
 def image_paths_to_csv(
-    image_paths: Sequence[str | Path] | str | Path,
-    output_csv_path: str | Path,
+    image_paths: Sequence[PathLike] | PathLike,
+    output_csv_path: PathLike,
     dimensions: Sequence[dict[str, int]] | dict[str, int] | None = None,
     dtypes: Sequence[str | np.dtype] | str | np.dtype | None = None,
     overwrite: bool = False,

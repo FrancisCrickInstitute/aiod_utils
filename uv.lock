@@ -106,7 +106,7 @@ requires-dist = [
     { name = "scikit-image", specifier = ">0.20" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "tifffile" },
-    { name = "zarr", specifier = ">=3" },
+    { name = "zarr", specifier = ">=3.1.5" },
 ]
 provides-extras = ["bioformats"]
 
