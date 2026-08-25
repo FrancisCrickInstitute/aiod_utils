@@ -40,7 +40,7 @@ dependencies = [
     "tifffile",
     "numcodecs",
     "zarr>=3.1.5",
-    "numpy>=1.26,<2.0",
+    "numpy>=1.26,<3.0",
     "opencv-python",
     "scikit-image>0.20",
     "pyyaml",
