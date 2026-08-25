@@ -7,6 +7,7 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 from bioio import BioImage, writers
+from bioio.plugins import get_plugins
 from bioio_base.exceptions import InvalidDimensionOrderingError
 from bioio_base.reader import Reader
 
@@ -78,7 +79,9 @@ def get_image_id(img_path: str | Path) -> str:
     """
     name = Path(img_path).name
     if not Path(img_path).suffix:
-        raise ValueError(f"Image path {img_path} has no extension, which is not supported!")
+        raise ValueError(
+            f"Image path {img_path} has no extension, which is not supported!"
+        )
     name_lower = name.lower()
 
     # get_plugins() returns extensions from all installed bioio reader plugins
