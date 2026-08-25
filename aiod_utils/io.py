@@ -97,9 +97,10 @@ def get_image_id(img_path: str | Path) -> str:
         if name_lower.endswith(ext):
             return name[: -len(ext)]
     # If still no match, then raise an error so we can avoid more obscure errors later in the pipeline
-    raise ModuleNotFoundError(
-        f"No bioio reader found that supports '{Path(img_path).suffix}'"
-        f"Accepted extensions: {candidates}"
+    raise ValueError(
+        f"Image path {img_path} has an unrecognized extension "
+        f"'{Path(img_path).suffix}' - no installed bioio reader supports it. "
+        f"Accepted extensions: {sorted(candidates)}"
     )
 
 
