@@ -1,6 +1,7 @@
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import dask.array as da
@@ -67,7 +68,32 @@ def _guess_reader(fpath: PathLike) -> type[Reader] | None:
     return None
 
 
-def get_image_id(img_path: str | Path) -> str:
+@dataclass(frozen=True)
+class ImageId:
+    """
+    Identity of a source image, split into the parts consumers need.
+
+    ``stem`` is for anything a user reads (e.g. napari layer names), ``value``
+    is for anything that has to be unique on disk or across processes (mask
+    filenames, the ``image_id`` CSV column Segment-Flow carries through).
+
+    ``value`` always folds the extension in, even when nothing would collide.
+    This ensures that image_ids always resolve to a unique result, regardless
+    of context (i.e. other files that have the same name with diff ext).
+    """
+
+    stem: str
+    ext: str
+
+    @property
+    def value(self) -> str:
+        return f"{self.stem}_{self.ext.lstrip('.').replace('.', '_')}"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+def get_image_id(img_path: str | Path) -> ImageId:
     """
     Get a consistent identity for an image path to use as basis for derived paths
     (e.g. mask filenames)
@@ -95,7 +121,7 @@ def get_image_id(img_path: str | Path) -> str:
     # We match bioio and match e.g. .ome.tiff first over .tiff
     for ext in sorted(candidates, key=len, reverse=True):
         if name_lower.endswith(ext):
-            return name[: -len(ext)]
+            return ImageId(stem=name[: -len(ext)], ext=name[-len(ext) :])
     # If still no match, then raise an error so we can avoid more obscure errors later in the pipeline
     raise ValueError(
         f"Image path {img_path} has an unrecognized extension "
@@ -104,56 +130,36 @@ def get_image_id(img_path: str | Path) -> str:
     )
 
 
-def resolve_image_ids(img_paths: Sequence[PathLike]) -> list[str]:
+def validate_image_ids(img_paths: Sequence[PathLike]) -> list[ImageId]:
     """
-    Resolve batch of image paths into image_ids, checking for collisions
-
-    Collisions occur when the name is the same and extension differs, or same
-    name and extension.
-
-    Fix the former by incorporating extension into the filename.
-
-    Raise an error for the latter to avoid issues
+    Get the ImageId for a batch of paths, erroring if any of them collide.
+    A collision is where a filename and extension is shared, i.e. same name
+    in diff directories. This would later collide in Nextflow work dirs.
     """
-    # Get image_ids for all input paths
     paths = [Path(p) for p in img_paths]
-    raw_ids = [get_image_id(p) for p in paths]
-    # Group all ids together
-    groups = defaultdict(list)
-    for i, raw_id in enumerate(raw_ids):
-        groups[raw_id].append(i)
-    # Create new list to modify
-    resolved = list(raw_ids)
-    for raw_id, idxs in groups.items():
-        if len(idxs) == 1:
-            continue
-        for i in idxs:
-            # Grab whatever get_image_id stripped as the extension and roll it in
-            ext = paths[i].name[len(raw_id) :]
-            resolved[i] = f"{raw_id}_{ext.lstrip('.').replace('.', '_')}"
-    # Check to see if we still have collisions (same filename and extension, diff parent)
+    image_ids = [get_image_id(p) for p in paths]
     conflicts = defaultdict(list)
-    for i, resolved_id in enumerate(resolved):
-        conflicts[resolved_id].append(paths[i])
-    still_colliding = {k: v for k, v in conflicts.items() if len(v) > 1}
-    if still_colliding:
+    for path, image_id in zip(paths, image_ids, strict=True):
+        conflicts[image_id.value].append(path)
+    colliding = {k: v for k, v in conflicts.items() if len(v) > 1}
+    if colliding:
         detail = "\n".join(
             f"  {image_id}: {[str(p) for p in ps]}"
-            for image_id, ps in still_colliding.items()
+            for image_id, ps in colliding.items()
         )
         raise ValueError(
             "Cannot derive unique image_id for the following image(s) - they "
-            "share both a filename and extension across different "
-            "directories:\n"
+            "share both a filename and extension:\n"
             f"{detail}\n"
-            "Rename or move one of each conflicting set of files before rerunning."
+            "Deduplicate the input, or rename/move one of each conflicting set "
+            "of files, before rerunning."
         )
-    return resolved
+    return image_ids
 
 
 def get_mask_name(
     run_hash: str,
-    image_id: str | Path | None = None,
+    image_id: ImageId | str | None = None,
     image_path: str | Path | None = None,
     prep_hash: str | None = None,
 ) -> str:
@@ -161,6 +167,9 @@ def get_mask_name(
     Canonical mask filename stem, so that any consumer needing to predict a
     Segment-Flow mask filename before it exists (e.g. aiod_napari's file
     watcher) can call this.
+
+    Uses ImageId (or an already-stringified ImageId.value), not a
+    bare stem, as the extension is part of what makes the filename unique.
 
     NOTE: Segment-Flow's equivalent (getMaskName in main.nf) has to compute
     this independently. Nextflow's process `output:` declarations need the
