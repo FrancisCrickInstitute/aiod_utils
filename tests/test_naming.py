@@ -1,6 +1,14 @@
 import pytest
 
-from aiod_utils.io import get_image_id, get_mask_name, validate_image_ids
+from aiod_utils.io import (
+    get_combined_mask_name,
+    get_image_id,
+    get_mask_name,
+    get_mask_prefix,
+    get_mask_prefix_from_name,
+    is_combined_mask,
+    validate_image_ids,
+)
 
 # --- get_image_id: dots within the stem, not just the extension ---
 
@@ -120,7 +128,10 @@ def test_validate_image_ids_single_path():
 def test_validate_image_ids_same_stem_different_extension_passes():
     # No longer a collision to resolve - the extension is always in the id
     paths = ["/data/expA/cell.tiff", "/data/expA/cell.ome.tiff"]
-    assert [i.value for i in validate_image_ids(paths)] == ["cell_tiff", "cell_ome_tiff"]
+    assert [i.value for i in validate_image_ids(paths)] == [
+        "cell_tiff",
+        "cell_ome_tiff",
+    ]
 
 
 def test_validate_image_ids_empty():
@@ -188,3 +199,68 @@ def test_get_mask_name_distinguishes_same_stem_different_extension():
 def test_get_mask_name_requires_an_image():
     with pytest.raises(ValueError, match="must be provided"):
         get_mask_name(run_hash="1a2b3c4d")
+
+
+# --- get_mask_prefix: the (image, preprocessing) identity ---
+
+
+def test_get_mask_prefix_is_the_mask_name_without_the_run_hash():
+    # The two must not drift: consumers match masks on disk by this prefix
+    image_id = get_image_id("cell.ome.tiff")
+    for prep_hash in (None, "deadbeef"):
+        prefix = get_mask_prefix(image_id, prep_hash=prep_hash)
+        name = get_mask_name(
+            run_hash="1a2b3c4d", image_id=image_id, prep_hash=prep_hash
+        )
+        assert name == f"{prefix}_masks_1a2b3c4d"
+
+
+def test_get_mask_prefix_carries_the_full_image_id():
+    assert get_mask_prefix(get_image_id("cell.ome.tiff")) == "cell_ome_tiff"
+
+
+def test_get_mask_prefix_distinguishes_preprocessing_sets():
+    image_id = get_image_id("cell.tif")
+    assert get_mask_prefix(image_id) != get_mask_prefix(image_id, prep_hash="deadbeef")
+
+
+def test_get_mask_prefix_accepts_a_plain_string_id():
+    assert get_mask_prefix("cell_tif", prep_hash="deadbeef") == "cell_tif_deadbeef"
+
+
+# --- mask name construction and parsing round-trip ---
+
+
+def test_mask_prefix_recovered_from_a_substack_filename():
+    # What a directory watcher has to do: it only sees filenames
+    name = get_mask_name(run_hash="1a2b3c4d", image_path="/data/cell.ome.tiff")
+    written = f"{name}_x0-64_y0-64_z0-1.rle"
+    assert get_mask_prefix_from_name(written) == get_mask_prefix(
+        get_image_id("cell.ome.tiff")
+    )
+
+
+def test_mask_prefix_recovered_from_a_combined_filename():
+    name = get_mask_name(run_hash="1a2b3c4d", image_path="/data/cell.tif")
+    assert get_mask_prefix_from_name(get_combined_mask_name(name, "rle")) == "cell_tif"
+
+
+def test_mask_prefix_survives_a_separator_in_the_image_name():
+    # rsplit, not split: this image's own name contains the separator
+    name = get_mask_name(run_hash="1a2b3c4d", image_path="/data/foo_masks_bar.tif")
+    assert get_mask_prefix_from_name(f"{name}_x0-64_y0-64_z0-1.rle") == (
+        "foo_masks_bar_tif"
+    )
+
+
+def test_combined_mask_name_with_and_without_extension():
+    assert get_combined_mask_name("cell_tif_masks_1a2b") == "cell_tif_masks_1a2b_all"
+    assert get_combined_mask_name("cell_tif_masks_1a2b", "rle") == (
+        "cell_tif_masks_1a2b_all.rle"
+    )
+
+
+def test_is_combined_mask_distinguishes_substacks():
+    name = get_mask_name(run_hash="1a2b3c4d", image_path="/data/cell.tif")
+    assert is_combined_mask(get_combined_mask_name(name, "rle"))
+    assert not is_combined_mask(f"{name}_x0-64_y0-64_z0-1.rle")
