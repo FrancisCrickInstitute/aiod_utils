@@ -466,6 +466,18 @@ def get_params_str(
     return "_".join(res)
 
 
+def get_prep_hash(methods: list[dict] | None) -> str | None:
+    """Short id for a preprocessing set, or None for a no-op/absent one
+
+    The two steps (serialise, hash) plus the no-op case in one place for consistency.
+
+    NOTE: takes methods, not a params string - get_params_str reads a bare str
+    as a path, so it cannot round-trip its own output!
+    """
+    params_str = get_params_str(methods, to_save=True)
+    return hash_params_str(params_str) if params_str else None
+
+
 def hash_params_str(params_str: str) -> str:
     """Short, deterministic id for a preprocessing-params string
 

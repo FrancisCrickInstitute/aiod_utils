@@ -15,6 +15,11 @@ from bioio_base.reader import Reader
 PathLike = str | Path
 ImageLike = BioImage | np.ndarray | da.Array
 
+# Separates the (image, preprocessing) prefix from the run hash in mask names
+MASK_SEPARATOR = "_masks_"
+# Marks the mask combined across every substack, as opposed to one substack
+COMBINED_MASK_SUFFIX = "_all"
+
 
 def _guess_reader(fpath: PathLike) -> type[Reader] | None:
     ext = "".join(Path(fpath).suffixes).lower()
@@ -157,6 +162,24 @@ def validate_image_ids(img_paths: Sequence[PathLike]) -> list[ImageId]:
     return image_ids
 
 
+def get_mask_prefix(
+    image_id: ImageId | str,
+    prep_hash: str | None = None,
+) -> str:
+    """
+    Utility to get mask prefix from identity and preprocessing hash
+    Avoids having to parse filenames when prefix is needed!
+
+    ``image_id`` is normally an ImageId (or its ``value``, e.g. read back from
+    Segment-Flow's image_id column). A display form of the identity is also
+    accepted, so callers building a human-readable name (like aiod_napari's
+    mask layer names) share this, the result then follows the identity given,
+    not necessarily a real filename.
+    """
+    prep_suffix = f"_{prep_hash}" if prep_hash else ""
+    return f"{image_id}{prep_suffix}"
+
+
 def get_mask_name(
     run_hash: str,
     image_id: ImageId | str | None = None,
@@ -180,8 +203,32 @@ def get_mask_name(
         if image_path is None:
             raise ValueError("Either image_id or image_path must be provided")
         image_id = get_image_id(image_path)
-    prep_suffix = f"_{prep_hash}" if prep_hash else ""
-    return f"{image_id}{prep_suffix}_masks_{run_hash}"
+    return f"{get_mask_prefix(image_id, prep_hash)}{MASK_SEPARATOR}{run_hash}"
+
+
+def get_mask_prefix_from_name(fpath: PathLike) -> str:
+    """
+    Recover the (image, [preprocessing]) prefix from a mask filename.
+
+    Mainly used by file watchers that need to handle filenames directly.
+    """
+    # NOTE: rsplit used in case the original filename had MASK_SEPARATOR in it
+    return Path(fpath).stem.rsplit(MASK_SEPARATOR, 1)[0]
+
+
+def get_combined_mask_name(mask_name: str, extension: str | None = None) -> str:
+    """
+    Name of the mask combined across every substack, optionally with extension
+
+    NOTE: The `mask_name` is expected to be the formatted output from `get_mask_name()`
+    """
+    name = f"{mask_name}{COMBINED_MASK_SUFFIX}"
+    return f"{name}.{extension}" if extension else name
+
+
+def is_combined_mask(fpath: PathLike) -> bool:
+    """Whether a mask file is the combined one rather than a single substack"""
+    return Path(fpath).stem.endswith(COMBINED_MASK_SUFFIX)
 
 
 def guess_rgba(img: BioImage):
