@@ -37,9 +37,16 @@ def _normalize_to_stack(shape: Stack | tuple[int, ...]) -> Stack:
 class Preprocess:
     # Display/readable name for the preprocessing function to use in UI
     name: str = None
-    # Parameter dictionary for the underlying function
-    # Should contain the parameters as keys
-    # Under that then the default value and a pretty name for the UI
+    # Parameter dictionary for the underlying function. Keys per parameter:
+    #   name    - pretty name for the UI (required)
+    #   default - default value (required)
+    #   tooltip - help text for the UI
+    #   values  - permitted values, rendered as a dropdown
+    #   min/max - bounds for numeric entry; the UI falls back to a wide range
+    #   step    - increment for numeric entry
+    #   values_by_dim   - subset of `values` valid per dimensionality ("2d"/"3d"),
+    #                     preferred choice first: the UI falls back to it
+    #   3d_only_indices - list/tuple indices that only apply to 3D data
     params: dict = None
     # A tooltip for the UI
     tooltip: str = None
@@ -124,6 +131,9 @@ class Downsample(Preprocess):
             "name": "Factor (D, H, W)",
             "default": (1, 2, 2),
             "tooltip": "Downsample factor for each dimension (D, H, W)",
+            # block_reduce rejects factors < 1
+            "min": 1,
+            "max": 1000,
             "3d_only_indices": [0],
         },
         "method": {
@@ -234,11 +244,17 @@ class CLAHE(Preprocess):
             "name": "Tile/Block size",
             "default": (12, 12),
             "tooltip": "Size of the tile to equalize the histogram of",
+            # OpenCV errors on a zero-size grid
+            "min": 1,
+            "max": 256,
         },
         "clipLimit": {
             "name": "Clip limit/Slope",
             "default": 3.0,
             "tooltip": "Clip limit for contrast, avoiding noise amplification",
+            # 0 is valid and means no clipping; OpenCV's own examples go up to 40
+            "min": 0.0,
+            "max": 100.0,
         },
     }
     tooltip: str = "Contrast Limited Adaptive Histogram Equalization"
@@ -294,6 +310,9 @@ class Filter(Preprocess):
             "name": "Width/Radius",
             "default": 5,
             "tooltip": "Width of the square/cube or radius of the disk/ball used to define the neighbourhood",
+            # square(0)/cube(0) is empty; the rank filters assert on it
+            "min": 1,
+            "max": 100,
         },
         "method": {
             "name": "Method",
