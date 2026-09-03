@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-08-27T15:26:47.908829Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -370,7 +370,7 @@ wheels = [
 
 [[package]]
 name = "bioio-ome-zarr"
-version = "3.4.0"
+version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bioio-base" },
@@ -381,9 +381,9 @@ dependencies = [
     { name = "xarray" },
     { name = "zarr" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/d3/462495f0c26e4323fcbd7c1f816a140fc36843a57989739e202c1875d82a/bioio_ome_zarr-3.4.0.tar.gz", hash = "sha256:5fa7fbd2d7a64055b2299b5940615e61d023277aae17a446736bb4617ee69241", size = 41727, upload-time = "2026-04-22T19:55:06.976Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/fe/196be1400e43ee2f095fcf2b40ffb02f12533515cad183b601d7e96e2aa8/bioio_ome_zarr-3.8.0.tar.gz", hash = "sha256:d9de0a3e1dbb7e3eb47105a9d4e5936bdb1979517cfc3d5afb0292b1133a8d0d", size = 51297, upload-time = "2026-08-19T20:27:36.808Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/c3/75436e32d97882d4725a2cf507ac97b53ee048afe452c656496017dcfce1/bioio_ome_zarr-3.4.0-py3-none-any.whl", hash = "sha256:a89021d49822a1f9ac2705f0cb0a84f7085b05f04a33d782c1355618553c2a53", size = 32101, upload-time = "2026-04-22T19:55:05.62Z" },
+    { url = "https://files.pythonhosted.org/packages/46/46/cbad91da20d80c97ef6d2300492fcc13378d5d136bd775e5ab06dfc39979/bioio_ome_zarr-3.8.0-py3-none-any.whl", hash = "sha256:ab889c8e307801938025897c7ea22491ea9003ca21615f2207f6170c0456be20", size = 37563, upload-time = "2026-08-19T20:27:35.497Z" },
 ]
 
 [[package]]
@@ -776,7 +776,7 @@ name = "importlib-metadata"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/01/15bb152d77b21318514a96f43af312635eb2500c96b55398d020c93d86ea/importlib_metadata-9.0.0.tar.gz", hash = "sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc", size = 56405, upload-time = "2026-03-20T06:42:56.999Z" }
 wheels = [
