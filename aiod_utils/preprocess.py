@@ -37,17 +37,19 @@ def _normalize_to_stack(shape: Stack | tuple[int, ...]) -> Stack:
 class Preprocess:
     # Display/readable name for the preprocessing function to use in UI
     name: str = None
-    # Parameter dictionary for the underlying function
-    # Should contain the parameters as keys
-    # Under that then the default value and a pretty name for the UI
+    # Parameter dictionary for the underlying function. Keys per parameter:
+    #   name    - pretty name for the UI (required)
+    #   default - default value (required)
+    #   tooltip - help text for the UI
+    #   values  - permitted values, rendered as a dropdown
+    #   min/max - bounds for numeric entry; the UI falls back to a wide range
+    #   step    - increment for numeric entry
+    #   3d_only_indices - list/tuple indices that only apply to 3D data
     params: dict = None
     # A tooltip for the UI
     tooltip: str = None
     # A flag to indicate if the function will change the image shape
     shape_change: bool = False
-    # Set True on subclasses whose behaviour depends on image dimensionality.
-    # The UI will disable such methods when images with mixed dimensions are loaded.
-    requires_uniform_dims: bool = False
 
     def __init__(self, params: dict):
         # Check if the subclass has defined the required attributes
@@ -109,7 +111,6 @@ class Downsample(Preprocess):
     name: str = "Downsample"
 
     shape_change: bool = True
-    requires_uniform_dims: bool = True
 
     methods: dict = {
         "mean": np.mean,
@@ -124,6 +125,9 @@ class Downsample(Preprocess):
             "name": "Factor (D, H, W)",
             "default": (1, 2, 2),
             "tooltip": "Downsample factor for each dimension (D, H, W)",
+            # block_reduce rejects factors < 1
+            "min": 1,
+            "max": 1000,
             "3d_only_indices": [0],
         },
         "method": {
@@ -234,11 +238,17 @@ class CLAHE(Preprocess):
             "name": "Tile/Block size",
             "default": (12, 12),
             "tooltip": "Size of the tile to equalize the histogram of",
+            # OpenCV errors on a zero-size grid
+            "min": 1,
+            "max": 256,
         },
         "clipLimit": {
             "name": "Clip limit/Slope",
             "default": 3.0,
             "tooltip": "Clip limit for contrast, avoiding noise amplification",
+            # 0 is valid and means no clipping; OpenCV's own examples go up to 40
+            "min": 0.0,
+            "max": 100.0,
         },
     }
     tooltip: str = "Contrast Limited Adaptive Histogram Equalization"
@@ -268,13 +278,13 @@ class CLAHE(Preprocess):
 class Filter(Preprocess):
     name: str = "Filter"
 
-    requires_uniform_dims: bool = True
-
     funcs: dict = {
         "mean": skimage.filters.rank.mean,
         "median": skimage.filters.rank.median,
     }
 
+    # Low-level skimage structuring elements, kept as-is for consumers that pick
+    # a concrete shape themselves (e.g. the MorphMasks postprocessing widget).
     filters: dict = {
         "square": skimage.morphology.square,
         "cube": skimage.morphology.cube,
@@ -282,18 +292,35 @@ class Filter(Preprocess):
         "ball": skimage.morphology.ball,
     }
 
+    # Dimension-agnostic footprint families: (2D shape, 3D shape). run() picks
+    # the member matching the image, so a set need not know the image's dims.
+    footprint_families: dict = {
+        "round": ("disk", "ball"),
+        "square": ("square", "cube"),
+    }
+
+    # Legacy configs stored the concrete shape; fold those onto their family.
+    _footprint_aliases: dict = {
+        "disk": "round",
+        "ball": "round",
+        "square": "square",
+        "cube": "square",
+    }
+
     params: dict = {
         "footprint": {
             "name": "Filter",
-            "default": "disk",
-            "values": list(filters.keys()),
-            "values_by_dim": {"2d": ["disk", "square"], "3d": ["ball", "cube"]},
+            "default": "round",
+            "values": list(footprint_families.keys()),
             "tooltip": "Shape of the neighbourhood used for filtering",
         },
         "size": {
             "name": "Width/Radius",
             "default": 5,
             "tooltip": "Width of the square/cube or radius of the disk/ball used to define the neighbourhood",
+            # square(0)/cube(0) is empty; the rank filters assert on it
+            "min": 1,
+            "max": 100,
         },
         "method": {
             "name": "Method",
@@ -303,13 +330,19 @@ class Filter(Preprocess):
         },
     }
 
-    tooltip: str = "Apply a rank filter to the image. Note that 3D filters cannot be used on 2D images and vice versa."
+    tooltip: str = "Apply a rank filter to the image. The footprint adapts to the image's dimensionality automatically."
 
     def __init__(self, params: dict):
-        if params["footprint"] not in self.filters:
+        # Accept legacy concrete-shape names (disk/ball/square/cube) transparently
+        footprint = self._footprint_aliases.get(
+            params["footprint"], params["footprint"]
+        )
+        if footprint not in self.footprint_families:
             raise ValueError(
-                f"Invalid neighbourhood/footprint option ({params['footprint']})! Must be one of {self.filters.keys()}"
+                f"Invalid neighbourhood/footprint option ({params['footprint']})! "
+                f"Must be one of {list(self.footprint_families.keys())}"
             )
+        params = {**params, "footprint": footprint}
         if params["method"] not in self.funcs:
             raise ValueError(
                 f"Invalid method ({params['method']}! Must be one of {self.funcs.keys()}"
@@ -318,25 +351,13 @@ class Filter(Preprocess):
 
     def run(self, img):
         self.check_input(img)
-        footprint = self.filters[self.kwarg_params["footprint"]](
-            self.kwarg_params.pop("size")
-        )
+        shape_2d, shape_3d = self.footprint_families[self.kwarg_params["footprint"]]
+        shape = shape_2d if img.ndim == 2 else shape_3d
+        footprint = self.filters[shape](self.kwarg_params.pop("size"))
         return self.funcs[self.kwarg_params["method"]](img, footprint=footprint)
 
     def check_input(self, img):
-        # skimage will throw an error if a 3D neighbourhood is used on a 2D image
-        if img.ndim == 2:
-            if self.kwarg_params["footprint"] in ["cube", "ball"]:
-                raise ValueError(
-                    "A 3D filter (cube/ball) cannot be used on a 2D image!"
-                )
-        # skimage will throw an error if a 2D neighbourhood is used on a 3D image
-        elif img.ndim == 3:
-            if self.kwarg_params["footprint"] in ["square", "disk"]:
-                raise ValueError(
-                    "A 2D filter (square/disk) cannot be used on a 3D image!"
-                )
-        elif img.ndim > 3:
+        if img.ndim not in (2, 3):
             raise ValueError("Filter only works with 2D or 3D images!")
         return img
 
