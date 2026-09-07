@@ -52,9 +52,6 @@ class Preprocess:
     tooltip: str = None
     # A flag to indicate if the function will change the image shape
     shape_change: bool = False
-    # Set True on subclasses whose behaviour depends on image dimensionality.
-    # The UI will disable such methods when images with mixed dimensions are loaded.
-    requires_uniform_dims: bool = False
 
     def __init__(self, params: dict):
         # Check if the subclass has defined the required attributes
@@ -116,7 +113,6 @@ class Downsample(Preprocess):
     name: str = "Downsample"
 
     shape_change: bool = True
-    requires_uniform_dims: bool = True
 
     methods: dict = {
         "mean": np.mean,
@@ -283,8 +279,6 @@ class CLAHE(Preprocess):
 
 class Filter(Preprocess):
     name: str = "Filter"
-
-    requires_uniform_dims: bool = True
 
     funcs: dict = {
         "mean": skimage.filters.rank.mean,
