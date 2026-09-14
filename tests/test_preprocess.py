@@ -1,5 +1,4 @@
 import aiod_utils.preprocess
-from aiod_utils.preprocess import get_downsample_factor
 
 # ── get_downsample_factor ─────────────────────────────────────────────────────
 
@@ -8,16 +7,16 @@ def test_get_downsample_factor_from_methods():
     methods = [
         {"name": "Downsample", "params": {"block_size": [10, 10, 10], "method": "mean"}}
     ]
-    assert get_downsample_factor(methods=methods) == (10, 10, 10)
+    assert aiod_utils.preprocess.get_downsample_factor(methods=methods) == (10, 10, 10)
 
 
 def test_get_downsample_factor_from_methods_no_downsample():
     methods = [{"name": "GaussianBlur", "params": {"sigma": 1.0}}]
-    assert get_downsample_factor(methods=methods) is None
+    assert aiod_utils.preprocess.get_downsample_factor(methods=methods) is None
 
 
 def test_get_downsample_factor_from_empty_methods():
-    assert get_downsample_factor(methods=[]) is None
+    assert aiod_utils.preprocess.get_downsample_factor(methods=[]) is None
 
 
 # --- get_prep_hash: one definition of the prep_set -> hash rule ---
