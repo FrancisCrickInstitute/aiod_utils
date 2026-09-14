@@ -60,6 +60,7 @@ bioformats = ["bioio-bioformats"]
 dev = [
     "line-profiler>=5.0.2",
     "pytest",
+    "ruff>=0.16.5",
 ]
 
 
@@ -78,7 +79,9 @@ packages = ["aiod_utils"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-    ".github"
+    ".github",
+    # Not covered by .gitignore here, so hatchling would otherwise ship it
+    ".claude",
 ]
 
 
