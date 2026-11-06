@@ -54,7 +54,8 @@ documentation = "https://franciscrickinstitute.github.io/aiod_docs/"
 source = "https://github.com/FrancisCrickInstitute/aiod_utils"
 
 [project.optional-dependencies]
-bioformats = ["bioio-bioformats"]
+# Must now be >=2: 1.x hardcodes an old Bio-Formats and ignores the pin in io.py
+bioformats = ["bioio-bioformats>=2,<3"]
 
 [dependency-groups]
 dev = [

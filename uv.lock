@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-09-08T09:17:34.44171Z"
+exclude-newer = "2026-10-30T16:42:02.926741Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -93,7 +93,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bioio", specifier = ">=3.2.0" },
-    { name = "bioio-bioformats", marker = "extra == 'bioformats'" },
+    { name = "bioio-bioformats", marker = "extra == 'bioformats'", specifier = ">=2,<3" },
     { name = "bioio-czi" },
     { name = "bioio-imageio", specifier = ">=1.1.0" },
     { name = "bioio-lif" },
@@ -224,6 +224,21 @@ wheels = [
 ]
 
 [[package]]
+name = "bffile"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "ome-types", extra = ["lxml", "pint"] },
+    { name = "scyjava" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c3/a7/545932324eed4c3a4bf880d54037d0b77c918b5d30d86ffb9b852fc3b0a8/bffile-0.1.1.tar.gz", hash = "sha256:bf9b792506e4381288b2fb75b4004e12d52ca1cfaefb039845c649b20aeeca3b", size = 94225, upload-time = "2026-03-12T22:49:35.928Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/20/05c68fe2faa2ad6d6aef607789cc77baec027c6562ddca5afef1fd0fdd26/bffile-0.1.1-py3-none-any.whl", hash = "sha256:1f6a6c6d90ff87af292f817b664bf7a44af4e690c5eeffefda5ea1a539b81aa6", size = 63531, upload-time = "2026-03-12T22:49:34.717Z" },
+]
+
+[[package]]
 name = "bioio"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -260,9 +275,10 @@ wheels = [
 
 [[package]]
 name = "bioio-bioformats"
-version = "1.3.2"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "bffile" },
     { name = "bioio-base" },
     { name = "dask", extra = ["array"] },
     { name = "fsspec" },
@@ -272,9 +288,9 @@ dependencies = [
     { name = "resource-backed-dask-array" },
     { name = "scyjava" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/86/fd5fa2b71cec3bb49cb448a34d62e9aade3464472989f9a46b0ba49d4aa2/bioio_bioformats-1.3.2.tar.gz", hash = "sha256:34d1264ef023fc598ef6d4374e9a7f7a7804dd402a0493f3ad88dca6f81948ef", size = 38454, upload-time = "2025-12-03T18:35:58.204Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/4e/587891a9ff95efe6d7d1ade8f988e13312cd263ccbe16790ef0f67138bfc/bioio_bioformats-2.0.0.tar.gz", hash = "sha256:fd2b8bf43f0d17c67234f3df4f2aaa7f9e667d787ce26968257de3bca6833d67", size = 28286, upload-time = "2026-03-26T17:51:27.073Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/5f/8438464526fcb82f2b53ce4b1258284db5ee542ff036b5e1258787f1aa16/bioio_bioformats-1.3.2-py3-none-any.whl", hash = "sha256:15f12054a4bd0921a2e63773addaa9341107cf4f057fd530853ab0970999be31", size = 32241, upload-time = "2025-12-03T18:35:56.749Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/7e/62d8c3731dad49ab0eb26c540179e53b03dc7bb97ff23fff6f1fe2755541/bioio_bioformats-2.0.0-py3-none-any.whl", hash = "sha256:997e037f1ff864e0c2e7449df03f338c7f2173b641950fd975e0bdfdeae4a7f5", size = 21065, upload-time = "2026-03-26T17:51:25.872Z" },
 ]
 
 [[package]]
