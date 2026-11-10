@@ -40,7 +40,7 @@ dependencies = [
     "tifffile",
     "numcodecs",
     "zarr>=3.1.5",
-    "numpy>=1.26,<2.0",
+    "numpy>=1.26",
     "opencv-python-headless",
     "scikit-image>0.20",
     "pyyaml",
@@ -54,7 +54,8 @@ documentation = "https://franciscrickinstitute.github.io/aiod_docs/"
 source = "https://github.com/FrancisCrickInstitute/aiod_utils"
 
 [project.optional-dependencies]
-bioformats = ["bioio-bioformats"]
+# Must now be >=2: 1.x hardcodes an old Bio-Formats and ignores the pin in io.py
+bioformats = ["bioio-bioformats>=2,<3"]
 
 [dependency-groups]
 dev = [

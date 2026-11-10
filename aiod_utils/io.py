@@ -1,3 +1,4 @@
+import os
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
@@ -19,6 +20,59 @@ ImageLike = BioImage | np.ndarray | da.Array
 MASK_SEPARATOR = "_masks_"
 # Marks the mask combined across every substack, as opposed to one substack
 COMBINED_MASK_SUFFIX = "_all"
+
+# Unpinned, bffile resolves Bio-Formats to Maven's floating RELEASE (which can
+# be a release candidate), so napari and every pipeline env could read the same
+# file with different versions, and resolving it needs network.
+# Set version at import rather than lazily because bioio plugin discovery can import
+# bffile, which reads this env var at its own import time.
+BIOFORMATS_VERSION = "8.5.0"
+os.environ.setdefault("BIOFORMATS_VERSION", BIOFORMATS_VERSION)
+
+
+def _configure_bioformats_jvm() -> None:
+    """Must run before the JVM starts; scyjava ignores later config changes."""
+    import scyjava.config
+
+    # scyjava hands jgo its own cache dir (default ~/.jgo), so jgo's
+    # JGO_CACHE_DIR is otherwise ignored. Resolved envs there hold hardlinks or
+    # full copies of every jar, so shared deployments need it off small home dirs
+    if cache_dir := os.environ.get("JGO_CACHE_DIR"):
+        scyjava.config.set_cache_dir(cache_dir)
+    # scyjava's default ("always") ignores JAVA_HOME and downloads its own JRE
+    # into ~/.cache/cjdk, even when the env ships one (e.g. conda openjdk).
+    # BFF_JAVA_FETCH is bffile's own control for this, but bffile only applies it
+    # alongside a vendor/version constraint, so honour it here unconditionally
+    scyjava.config.set_java_constraints(
+        fetch=os.environ.get("BFF_JAVA_FETCH") or "auto"
+    )
+
+
+def prefetch_bioformats() -> str:
+    """
+    Deployment-time entry point only: nothing in aiod_utils calls this, and
+    reading images never needs it.
+
+    Invoked only by external setup tooling (e.g. Segment-Flow's prebuild,
+    via ``python -c "from aiod_utils.io import prefetch_bioformats;
+    prefetch_bioformats()"``) to warm a shared jgo/Maven cache ahead of time,
+    so that later reads on compute nodes need neither network nor a writable
+    cache. Without it, reads still work but fetch the jars on first use, and
+    several processes doing that first fetch at once can fail (jgo does no
+    locking), e.g. parallel pipeline tasks on a cold cache.
+
+    Starts the JVM with the same configuration reading uses, so it resolves
+    the same Bio-Formats version reads will ask for, and returns that
+    version.
+    """
+    # Importing registers bffile's Bio-Formats Maven endpoint with scyjava
+    import bioio_bioformats  # noqa: F401
+    import scyjava
+
+    _configure_bioformats_jvm()
+    if not scyjava.jvm_started():
+        scyjava.start_jvm()
+    return str(scyjava.jimport("loci.formats.FormatTools").VERSION)
 
 
 def _guess_reader(fpath: PathLike) -> type[Reader] | None:
@@ -59,6 +113,7 @@ def _guess_reader(fpath: PathLike) -> type[Reader] | None:
             # at it, or at pre-converting with bioformats2raw.
             from bioio_bioformats import Reader as BioformatsReader
 
+            _configure_bioformats_jvm()
             return BioformatsReader
     except ModuleNotFoundError as e:
         message = (
