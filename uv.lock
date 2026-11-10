@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'darwin'",
@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-10-30T16:42:02.926741Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -336,21 +336,22 @@ wheels = [
 
 [[package]]
 name = "bioio-lif"
-version = "1.4.0"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bioio-base" },
     { name = "dask", extra = ["array"] },
     { name = "fsspec" },
+    { name = "liffile", version = "2026.2.16", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "liffile", version = "2026.10.14", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pyyaml" },
-    { name = "readlif" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/47/82/aa731314c2a4f022ac017fb6d9122fefc0c123e5ea17cbd5d02852532f75/bioio_lif-1.4.0.tar.gz", hash = "sha256:3bc548b5c5dfe83bdba2c8ca30ee0792aa130a53fc25f0ab422a1e3e0cc52014", size = 35051, upload-time = "2025-07-07T17:05:58.746Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/d2/7c8c44cbdddb158112473c119f3a1cb15f0f44cf357f90475bdc2fc28a89/bioio_lif-2.0.1.tar.gz", hash = "sha256:f2d6d4ee980ea0853e5c03de20c692d21bc61a8c9b543329c91b2887cc4b7201", size = 24269, upload-time = "2026-10-14T20:46:38.229Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/2e/8ff04baeb25321e6aa54fa26d549a92101a47aba8f94cd0cb24d399de5f1/bioio_lif-1.4.0-py3-none-any.whl", hash = "sha256:4a05bc385b7ae6d18bff538665e7c16a397d419b61203004f9a91aaf4738ff54", size = 26622, upload-time = "2025-07-07T17:05:57.559Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/00/8897e5f171110497ab687c4ef81e98941bd8c253fe0d577b3513b1315b65/bioio_lif-2.0.1-py3-none-any.whl", hash = "sha256:04602267c181eaa906e219066d9a52d643299c04ca77aedaf107e949436b023f", size = 15215, upload-time = "2026-10-14T20:46:36.886Z" },
 ]
 
 [[package]]
@@ -807,7 +808,7 @@ name = "importlib-metadata"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/01/15bb152d77b21318514a96f43af312635eb2500c96b55398d020c93d86ea/importlib_metadata-9.0.0.tar.gz", hash = "sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc", size = 56405, upload-time = "2026-03-20T06:42:56.999Z" }
 wheels = [
@@ -910,6 +911,40 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/ac/21a1f8aa3777f5658576777ea76bfb124b702c520bbe90edf4ae9915eafa/lazy_loader-0.5.tar.gz", hash = "sha256:717f9179a0dbed357012ddad50a5ad3d5e4d9a0b8712680d4e687f5e6e6ed9b3", size = 15294, upload-time = "2026-03-06T15:45:09.054Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/a1/8d812e53a5da1687abb10445275d41a8b13adb781bbf7196ddbcf8d88505/lazy_loader-0.5-py3-none-any.whl", hash = "sha256:ab0ea149e9c554d4ffeeb21105ac60bed7f3b4fd69b1d2360a4add51b170b005", size = 8044, upload-time = "2026-03-06T15:45:07.668Z" },
+]
+
+[[package]]
+name = "liffile"
+version = "2026.2.16"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.12' and sys_platform == 'darwin'",
+    "python_full_version < '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
+]
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9a/31/45d9982cee5ed062369884cef5367c3a1a385f9f43b7f9964ef0a1859cad/liffile-2026.2.16.tar.gz", hash = "sha256:9659b8db2cd2a3b8f1f28e5371e499dd939b69e5dab0f74877bbf294d530ccc4", size = 53525, upload-time = "2026-02-17T00:59:27.87Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/01/bf32327d78ec94ae14fdba0588a8aa03439c78c34e6011fbd82b7b21e658/liffile-2026.2.16-py3-none-any.whl", hash = "sha256:e21ac32e39fa3598b0842fc0371df87ca9887c805f2a93a6fbb8c64dba5803dc", size = 34839, upload-time = "2026-02-17T00:59:25.637Z" },
+]
+
+[[package]]
+name = "liffile"
+version = "2026.10.14"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
+]
+dependencies = [
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" } },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/c7/ebd6c3938c6de7aa3fbbfb20f0ca574331b7685e40fa765fa5b0bece7846/liffile-2026.10.14.tar.gz", hash = "sha256:e0f06086b6b14280d9d85493760bf89ecc022aed009bee781bf566d84d9fc794", size = 61746, upload-time = "2026-10-14T18:41:14.133Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/97/976df02762f1c27253d9d1a82e91b3c931fff980da5d44ccfe950afae7c2/liffile-2026.10.14-py3-none-any.whl", hash = "sha256:b3a447d3feb16fa9e478d608d5167ab70699163439a7df968eab214a838ef739", size = 39288, upload-time = "2026-10-14T18:41:13.091Z" },
 ]
 
 [[package]]
@@ -1647,18 +1682,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/74/93/7baea19427dcfbe1e5a372d81473250b379f04b1bd3c4c5ff825e2327202/pyyaml-6.0.3-cp312-cp312-win32.whl", hash = "sha256:96b533f0e99f6579b3d4d4995707cf36df9100d67e0c8303a0c55b27b5f99bc5", size = 137658, upload-time = "2025-09-25T21:32:20.209Z" },
     { url = "https://files.pythonhosted.org/packages/86/bf/899e81e4cce32febab4fb42bb97dcdf66bc135272882d1987881a4b519e9/pyyaml-6.0.3-cp312-cp312-win_amd64.whl", hash = "sha256:5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b", size = 154003, upload-time = "2025-09-25T21:32:21.167Z" },
     { url = "https://files.pythonhosted.org/packages/1a/08/67bd04656199bbb51dbed1439b7f27601dfb576fb864099c7ef0c3e55531/pyyaml-6.0.3-cp312-cp312-win_arm64.whl", hash = "sha256:64386e5e707d03a7e172c0701abfb7e10f0fb753ee1d773128192742712a98fd", size = 140344, upload-time = "2025-09-25T21:32:22.617Z" },
-]
-
-[[package]]
-name = "readlif"
-version = "0.6.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pillow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/9c/2eb64d82d61f573213649e4d72a658a036b29a804ee06e45a8fd0be8bf66/readlif-0.6.5.tar.gz", hash = "sha256:273de3847c9a4c832d9cd486c2bf0656b99f30c157a7781254664bd9c9ccce0d", size = 26983, upload-time = "2021-11-24T22:51:08.87Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/ac/9eb898ad045935b4ee8ec8221b67e249f06c3d8e96b07bde529298ad2a3a/readlif-0.6.5-py3-none-any.whl", hash = "sha256:8ee776415d2539c46a21a908af0da7fefb8873d20e2041edfd2c0a055ed2742a", size = 24820, upload-time = "2021-11-24T22:51:07.311Z" },
 ]
 
 [[package]]
