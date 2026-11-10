@@ -6,7 +6,6 @@ import types
 
 import pytest
 
-import aiod_utils.io
 from aiod_utils.io import (
     BIOFORMATS_VERSION,
     _configure_bioformats_jvm,
@@ -120,14 +119,14 @@ def test_guess_reader_long_tail_warns_without_bioformats(block_module):
 
 def test_import_pins_bioformats_version(monkeypatch):
     monkeypatch.delenv("BIOFORMATS_VERSION", raising=False)
-    importlib.reload(aiod_utils.io)
-    assert aiod_utils.io.os.environ["BIOFORMATS_VERSION"] == BIOFORMATS_VERSION
+    importlib.reload(sys.modules["aiod_utils.io"])
+    assert os.environ["BIOFORMATS_VERSION"] == BIOFORMATS_VERSION
 
 
 def test_import_respects_existing_bioformats_version(monkeypatch):
     monkeypatch.setenv("BIOFORMATS_VERSION", "7.3.1")
-    importlib.reload(aiod_utils.io)
-    assert aiod_utils.io.os.environ["BIOFORMATS_VERSION"] == "7.3.1"
+    importlib.reload(sys.modules["aiod_utils.io"])
+    assert os.environ["BIOFORMATS_VERSION"] == "7.3.1"
 
 
 def test_configure_relocates_jgo_cache(fake_scyjava_config, monkeypatch, tmp_path):
