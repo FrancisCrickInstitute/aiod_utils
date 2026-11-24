@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'win32'",
@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-11-03T11:01:27.723111Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -301,7 +301,7 @@ wheels = [
 
 [[package]]
 name = "bioio-czi"
-version = "4.0.0"
+version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aicspylibczi" },
@@ -315,9 +315,9 @@ dependencies = [
     { name = "requests" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/46/c37d3ef9c4de53766d657707bdd0deda565d6e17ce3af38d65c7c99f3089/bioio_czi-4.0.0.tar.gz", hash = "sha256:324be2a924ad0dfeaa839bc9e2327131911796cf1ea2edf52e18943e9480edb9", size = 2202237, upload-time = "2026-10-28T18:53:35.686Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/67/600b2846066e0d67c4146411e32d8d9bb9bdfe3a7e0a8fe5c9ddfe8051f4/bioio_czi-4.1.0.tar.gz", hash = "sha256:6874323a6420a96046f118c8346bedfe9f6d88d8feb22367eca65bfc4dca4743", size = 2202067, upload-time = "2026-11-11T02:32:19.495Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/3b/fcc6d4c2773cbc894263f9e8941dd021bfe15d37b579e2a678da3de9134e/bioio_czi-4.0.0-py3-none-any.whl", hash = "sha256:a20c52025a006180a7ce378414f9c04423aea557c6ae61028731f5c66d16aa8d", size = 2207521, upload-time = "2026-10-28T18:53:34.131Z" },
+    { url = "https://files.pythonhosted.org/packages/32/b4/af400a469e9b2574dbf3165161479a3c1af21057d73bf690b9dcb8473ee2/bioio_czi-4.1.0-py3-none-any.whl", hash = "sha256:59ccc9b0fdf5b7dd39e2b35352cd0ce280f858577046fc1dce9a3e5f9705c566", size = 2207621, upload-time = "2026-11-11T02:32:17.604Z" },
 ]
 
 [[package]]
@@ -756,7 +756,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3b/8d/dc18623e5e926ad53c626e128c8baaf4ec42e41029cf0a07381cfef79289/imagecodecs-2026.3.6.tar.gz", hash = "sha256:471b8a4d1b3843cbf7179b45f7d7261f0c0b28809efc1ca6c47822477b143b85", size = 9565259, upload-time = "2026-03-07T01:26:41.183Z" }
 wheels = [
@@ -779,7 +779,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/28/7d/1658ab284e024562f1fd3a684dded89b97125789743e0d1f57a494b64290/imagecodecs-2026.10.10.tar.gz", hash = "sha256:cde6914505668196b15e0f99dbc236b779e3b61217f04d2e498cbae790965f9f", size = 9685030, upload-time = "2026-10-09T22:45:38.598Z" }
 wheels = [
@@ -834,7 +834,7 @@ name = "importlib-metadata"
 version = "10.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/98/f6/4eda8458eb00ec03e715c376c6b23b3def69687924c68d36d1c4003d3bc4/importlib_metadata-10.1.0.tar.gz", hash = "sha256:82b04047fa09792c1a8cfeddfe08bec79e4b13c29c8469b0d3949860f61017e8", size = 67761, upload-time = "2026-10-24T00:01:44.856Z" }
 wheels = [
@@ -951,7 +951,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9a/31/45d9982cee5ed062369884cef5367c3a1a385f9f43b7f9964ef0a1859cad/liffile-2026.2.16.tar.gz", hash = "sha256:9659b8db2cd2a3b8f1f28e5371e499dd939b69e5dab0f74877bbf294d530ccc4", size = 53525, upload-time = "2026-02-17T00:59:27.87Z" }
 wheels = [
@@ -968,7 +968,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4e/c7/ebd6c3938c6de7aa3fbbfb20f0ca574331b7685e40fa765fa5b0bece7846/liffile-2026.10.14.tar.gz", hash = "sha256:e0f06086b6b14280d9d85493760bf89ecc022aed009bee781bf566d84d9fc794", size = 61746, upload-time = "2026-10-14T18:41:14.133Z" }
 wheels = [
@@ -1259,8 +1259,8 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f9/03/c82563fffd81245a5b0239be8ff7743b30fe35d044080261458ae3c6aee5/numcodecs-0.16.6.tar.gz", hash = "sha256:5e446928af7c40b4dc8f51e960b4c9fb14f617846577d2fcf35ae2f92738f00f", size = 6288989, upload-time = "2026-10-20T19:42:43.925Z" }
 wheels = [
@@ -1286,8 +1286,8 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a6/f7/7fd3a5066fd07a1541b7937f3f9db73552f48b28a819470c5c00a0c3e472/numcodecs-0.17.1.tar.gz", hash = "sha256:5069dc01b0087c6135cbb3b043707aaf927c992fcd325248d15d907c51dd3747", size = 6290108, upload-time = "2026-10-20T19:37:58.903Z" }
 wheels = [
@@ -1504,10 +1504,10 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "flexcache", marker = "python_full_version < '3.12'" },
-    { name = "flexparser", marker = "python_full_version < '3.12'" },
-    { name = "platformdirs", marker = "python_full_version < '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+    { name = "flexcache" },
+    { name = "flexparser" },
+    { name = "platformdirs" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/52/9d/b1379cdbd33a49d17d627bc24e2b63cca06a1c5343b38072d2889499e82e/pint-0.25.3.tar.gz", hash = "sha256:f8f5df6cf65314d74da1ade1bf96f8e3e4d0c41b51577ac53c49e7d44ca5acee", size = 255106, upload-time = "2026-03-19T21:57:08.72Z" }
 wheels = [
@@ -1524,10 +1524,10 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "flexcache", marker = "python_full_version >= '3.12'" },
-    { name = "flexparser", marker = "python_full_version >= '3.12'" },
-    { name = "platformdirs", marker = "python_full_version >= '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.12'" },
+    { name = "flexcache" },
+    { name = "flexparser" },
+    { name = "platformdirs" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d3/b0/cef9c8913ebe959d97b2d57b1fc2a77a4291c4f2bd4dc3fe4d3313c938ea/pint-0.26.2.tar.gz", hash = "sha256:391e5d2fc01fdb121c113b8eb47386688575542c1f5144c465ff318bf5133573", size = 295834, upload-time = "2026-10-19T19:49:31.845Z" }
 wheels = [
@@ -1912,7 +1912,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -1948,7 +1948,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz", hash = "sha256:52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307", size = 30781235, upload-time = "2026-08-21T23:28:50.599Z" }
 wheels = [
@@ -2023,7 +2023,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c5/cb/2f6d79c7576e22c116352a801f4c3c8ace5957e9aced862012430b62e14f/tifffile-2026.3.3.tar.gz", hash = "sha256:d9a1266bed6f2ee1dd0abde2018a38b4f8b2935cb843df381d70ac4eac5458b7", size = 388745, upload-time = "2026-03-03T19:14:38.134Z" }
 wheels = [
@@ -2032,9 +2032,9 @@ wheels = [
 
 [package.optional-dependencies]
 zarr = [
-    { name = "fsspec", marker = "python_full_version < '3.12'" },
-    { name = "kerchunk", marker = "python_full_version < '3.12'" },
-    { name = "zarr", version = "3.1.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "fsspec" },
+    { name = "kerchunk" },
+    { name = "zarr", version = "3.1.6", source = { registry = "https://pypi.org/simple" } },
 ]
 
 [[package]]
@@ -2047,7 +2047,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fd/87/a982ca5b892579397c2b155275cc0119b51feb1701eaefa18acb0245f0a4/tifffile-2026.10.15.tar.gz", hash = "sha256:a5ee666dbd6d62e059830a3450825a2521a981b3f45c07a80ab009484aef56f0", size = 454150, upload-time = "2026-10-16T00:32:10.511Z" }
 wheels = [
@@ -2056,9 +2056,9 @@ wheels = [
 
 [package.optional-dependencies]
 zarr = [
-    { name = "fsspec", marker = "python_full_version >= '3.12'" },
-    { name = "kerchunk", marker = "python_full_version >= '3.12'" },
-    { name = "zarr", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "fsspec" },
+    { name = "kerchunk" },
+    { name = "zarr", version = "3.4.2", source = { registry = "https://pypi.org/simple" } },
 ]
 
 [[package]]
@@ -2316,12 +2316,12 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "donfig", marker = "python_full_version < '3.12'" },
-    { name = "google-crc32c", marker = "python_full_version < '3.12'" },
-    { name = "numcodecs", version = "0.16.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "packaging", marker = "python_full_version < '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+    { name = "donfig" },
+    { name = "google-crc32c" },
+    { name = "numcodecs", version = "0.16.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "packaging" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/31/5a/b8a0cf39a14c770c30bd1f2d120c54000c8cd9e84e8e79f38d9a7ce58071/zarr-3.1.6.tar.gz", hash = "sha256:d95e72cbea4b90e9a70679468b8266400331756232576ae2b43400ac5108d0eb", size = 386531, upload-time = "2026-03-23T17:25:18.748Z" }
 wheels = [
@@ -2338,13 +2338,13 @@ resolution-markers = [
     "python_full_version >= '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "donfig", marker = "python_full_version >= '3.12'" },
-    { name = "google-crc32c", marker = "python_full_version >= '3.12'" },
-    { name = "msgspec", marker = "python_full_version >= '3.12'" },
-    { name = "numcodecs", version = "0.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "packaging", marker = "python_full_version >= '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.12'" },
+    { name = "donfig" },
+    { name = "google-crc32c" },
+    { name = "msgspec" },
+    { name = "numcodecs", version = "0.17.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "packaging" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/de/cc/6667f7b90476aea8ee201f4f2f3bfec7d0032389b77afe02f0ed3d2e3d33/zarr-3.4.2.tar.gz", hash = "sha256:645d64f292f457120fc0ca18dbe38f665b4c21aaea38a2a88b5eead8f06f3d28", size = 943610, upload-time = "2026-10-27T15:31:09.825Z" }
 wheels = [
